@@ -1,0 +1,15 @@
+{
+  "name": "business-issue-assistant",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace frontend",
+    "build": "npm run build --workspace frontend",
+    "typecheck": "npm run typecheck --workspace frontend",
+    "api": "cd backend && uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000",
+    "setup:api": "cd backend && uv sync && uv run alembic upgrade head",
+    "seed": "cd backend && uv run python -m app.seed"
+  }
+}
