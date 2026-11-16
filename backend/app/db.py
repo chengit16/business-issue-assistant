@@ -1,9 +1,12 @@
 """配置关系型存储与请求级 Session，业务写入的提交及回滚由用例边界控制。"""
 
+from collections.abc import Generator
 from pathlib import Path
+from sqlite3 import Connection
 
 from sqlalchemy import create_engine, event
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy.pool import ConnectionPoolEntry
 
 from .config import settings
 
@@ -24,14 +27,15 @@ engine = create_engine(
 if settings.database_url.startswith("sqlite"):
 
     @event.listens_for(engine, "connect")
-    def enable_foreign_keys(connection, _):
+    def enable_foreign_keys(connection: Connection, _: ConnectionPoolEntry) -> None:
+        """本地 SQLite 同样执行外键约束，避免测试遗漏悬空引用。"""
         connection.execute("PRAGMA foreign_keys=ON")
 
 
 SessionLocal = sessionmaker(engine, expire_on_commit=False)
 
 
-def get_db():
+def get_db() -> Generator[Session, None, None]:
     """为单次请求提供 Session，退出作用域时释放连接及未提交事务。"""
     with SessionLocal() as session:
         yield session

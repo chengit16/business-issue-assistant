@@ -2,14 +2,14 @@
 
 将个人微信业务群中的问题、排查过程与解决经验整理成团队案例库，通过独立网页帮助业务同事查找经验、分析问题和反馈处理结果。
 
-已生成第一期前后端工程，支持登录、业务范围权限、原始材料收录、草稿确认发布、关键词检索、问题分析、处理反馈及案例版本追溯。前端使用 React、TypeScript、Vite 和 Ant Design，后台使用 FastAPI、SQLAlchemy 和 Alembic。
+第一期前后端工程支持登录、业务范围权限、原始材料收录、草稿确认发布、关键词检索、问题分析、处理反馈及案例版本追溯。前端采用 React、TypeScript、Vite、Ant Design、Zustand、UnoCSS、React Router 和 Axios；后台采用 FastAPI、Pydantic、SQLAlchemy 和 Alembic。
 
 ## 本地启动
 
-需要 Node.js 22.12+、Python 3.12+ 和 uv。在项目根目录执行以下命令安装依赖并初始化数据库。
+需要 Node.js 22.12+、npm 11+、Python 3.12+ 和 uv。当前复验使用 Node.js 24.19.0、npm 11.17.0，分别记录于 `.node-version` 与 `packageManager`。在项目根目录执行以下命令安装锁定依赖并初始化数据库。
 
 ```bash
-npm install
+npm ci
 npm run setup:api
 npm run seed
 ```
@@ -38,7 +38,7 @@ npm run dev
 cp backend/.env.example backend/.env
 ```
 
-管理员仅在首次初始化时创建。已有数据库的管理员信息不会随环境变量变化自动覆盖。登录会话有效期为 7 天，退出后服务端会话失效。
+管理员仅在首次初始化时创建。已有数据库的管理员信息不会随环境变量变化自动覆盖。登录会话有效期为 7 天，退出后服务端会话失效。身份仅从服务端 Cookie 会话恢复；切换账号会清空 Zustand 中的业务选择和复用输入，不持久化口令或令牌。
 
 模型服务的三个配置同时填写后，收录与分析调用兼容 Chat Completions 的接口。
 
@@ -50,7 +50,7 @@ MODEL_NAME=填写模型名称
 
 接口地址会拼接 `/chat/completions`，服务需支持 `messages`、`response_format` 的 JSON 对象输出及 `choices[0].message.content` 返回结构。后台校验结构化结果，引用范围和发布状态由业务服务控制。接口故障会返回可重试错误，当前表单输入保留。外部模型服务需要使用实际供应商配置验证。
 
-模型配置留空时使用本地规则模式，页面会明确显示模式。本地模式按中文双字和完整错误码检索，草稿预览仅提取标题与原文，其余字段由处理人补充。图片目前作为原始依据保存和查看，分析时请补充图片关键文字。
+模型配置全部留空时使用本地规则模式，页面会明确显示模式；部分填写会在启动时拒绝，避免误以为模型已启用。本地模式按中文双字和完整错误码检索，草稿预览仅提取标题与原文，其余字段由处理人补充。图片目前作为原始依据保存和查看，分析时请补充图片关键文字。
 
 需要使用 PostgreSQL 时，先启动数据库，再调整后台数据库地址并执行迁移。
 
@@ -76,31 +76,54 @@ npm run setup:api
 4. 知识维护人发布案例。在“问题助手”中提问时，仅将本业务内已发布且已验证的案例作为参考。
 5. 从案例详情查看原始依据和历史版本，完成处理后保存实际反馈。
 
-知识维护人可以通过 `POST /api/users` 创建业务同事、问题处理人和知识维护人账号，并配置业务范围。用户列表及账号管理页面后续接入。重复提交草稿、分析及反馈时沿用同一 `Idempotency-Key`，服务端返回第一次成功的结果。编辑案例需要携带版本号，并发版本冲突返回 409。
+知识维护人可以通过 `POST /api/users` 创建业务同事、问题处理人和知识维护人账号，并配置业务范围。用户列表及账号管理页面后续接入。重复提交草稿、分析及反馈时沿用同一 `Idempotency-Key`，服务端返回第一次成功的结果；权限撤销后仍须重新授权。编辑案例需要携带版本号，并发版本冲突返回 409，界面保留本地草稿供人工核对。
+
+React Router 使用 Hash 路由，无需额外配置服务器路径回退。业务、案例搜索、验证筛选和案例详情编号由 URL 保存，可刷新恢复；Zustand 只保存账号范围内的客户端选择。常规请求统一经过“页面或业务 Hook → 领域 Service → Axios Client”，不再使用 `fetch`。Axios 集中处理同源 Cookie、60 秒超时、取消和错误归一化，写请求不自动重试；取消浏览器等待不代表后台操作已撤销。
 
 ## 工程结构
 
 ```text
 frontend/
-  src/                 # 工作台页面、接口客户端和业务类型
+  src/
+    app/               # 应用装配、会话守卫、布局与路由
+    api/services/      # 按身份、案例、分析、材料和统计划分的领域接口
+    api/client.ts      # 唯一 Axios 传输入口
+    api/generated.ts   # 从实际 OpenAPI 生成的类型，不手工修改
+    api/contract.json  # 同源生成的响应运行时校验规则
+    store/             # 会话与工作台 Zustand 状态
+    pages/             # 按业务拆分的页面、Hook 和私有交互
+    hooks/             # 查询取消、晚到响应隔离和写请求范围
+    components/        # 跨页面复用的交互与错误恢复
+  uno.config.ts        # UnoCSS 预设与语义快捷类
 backend/
-  app/                 # 登录权限、业务模型、接口、模型适配及业务服务
+  app/
+    factory.py         # FastAPI 工厂与生命周期装配
+    api/               # Router、依赖、错误映射与请求上下文
+    application/       # 授权、幂等、事务和业务用例
+    domain/            # 有限状态、命令、可信身份与人工确认规则
+    contracts/         # 输入校验与安全响应投影
+    models.py          # SQLAlchemy 存储模型
+    provider.py        # 外部模型适配、超时和结果校验
   alembic/             # 数据库迁移
   rules/               # 版本化的收录与分析规则
-  tests/               # 业务流程与权限约束验证
+  scripts/             # 契约导出和临时 PostgreSQL 验证
+  tests/               # 业务、授权、配置、契约和旧库升级验证
+  openapi.json         # 从实际路由生成的公开契约
 compose.yaml           # 本地 PostgreSQL 服务
 ```
 
 ## 验证命令
 
 ```bash
-npm run typecheck
-npm run build
-cd backend
-uv run ruff check app tests alembic
-uv run pytest -q
-uv run alembic check
+npm run check
+npm run check:postgres
 ```
+
+`npm run check` 依次执行契约漂移、Prettier、ESLint、TypeScript、Vitest、生产构建、Ruff、mypy strict、pytest 与 Alembic 模型漂移检查。`npm run check:postgres` 需要 Docker，会创建随机命名、随机口令和回环随机端口的 PostgreSQL 17 临时容器，执行完整后端测试后清理，不使用开发数据库卷。常规 pytest 默认使用隔离的临时 SQLite。
+
+接口或 Schema 变更后执行 `npm run contract:generate`，提交 OpenAPI、运行时 Schema 与生成类型；CI 或本地用 `npm run contract:check` 检查漂移。前端 Service 在交付响应前使用同源 JSON Schema 校验未知数据，静态类型不替代运行时验证。
+
+本轮规范执行范围、实际验收与未验证环境见 [规范执行记录](docs/规范执行记录.md)。
 
 ## 后续实施范围
 
@@ -114,6 +137,7 @@ uv run alembic check
 | [开发路线与待办](docs/开发路线与待办.md) | 每期交付内容、前置条件和验收清单 |
 | [试点信息填写模板](docs/试点信息填写模板.md) | 试点业务、常见问题、试用人员和真实案例填写位置 |
 | [项目决策记录](docs/项目决策记录.md) | 当前方向、建议技术栈及需要进一步确认的事项 |
+| [规范执行记录](docs/规范执行记录.md) | 规范采用差异、工程整改、检查结果及验收边界 |
 
 ## 分期建设
 
@@ -123,9 +147,9 @@ uv run alembic check
 
 第一期即落实接口复用、来源与数据版本、独立规则和评估记录。AI 整理结果先作为草稿，方案是否验证有效由实际处理人确认。
 
-## 建议技术栈
+## 当前技术栈与后续选型
 
-- 前端：React、TypeScript、Vite、Ant Design。
+- 前端：React、TypeScript、Vite、Ant Design、Zustand、UnoCSS、React Router、Axios，已落实。
 - 后台：Python、FastAPI、Pydantic。
 - 数据：PostgreSQL、SQLAlchemy、Alembic；按检索效果引入 pgvector。
 - 文件：云对象存储；本地开发使用文件目录。
@@ -134,7 +158,7 @@ uv run alembic check
 - Agent：第三期评估采用 LangGraph，配置持久化运行状态。
 - 部署：Linux、Docker Compose，结合现有托管数据库和对象存储条件选择。
 
-以上为建议，具体版本、模型服务和部署位置在实施前确认。
+已安装依赖的具体版本以锁文件为准；对象存储、任务队列、采集工具、Agent 和部署环境仍按试点需求确认。
 
 ## 试点准备
 

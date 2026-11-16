@@ -1,62 +1,44 @@
 # 项目规范采用说明
 
-本文件由初始化工具生成。显式采用配置见 [project.json](project.json)，来源内容指纹与受管文件见 [manifest.json](manifest.json)。
+更新日期：2026 年 11 月 16 日。显式采用配置见 [project.json](project.json)，本轮整改及验收见 [规范执行记录](../docs/规范执行记录.md)。
 
 ## 选定技术栈
 
-- [fastapi](standards/backend/fastapi.md)：backend
-- [react-vite](standards/frontend/react-vite.md)：frontend
+- [FastAPI 后端规范](standards/backend/fastapi.md)：`backend`。
+- [React 前端规范](standards/frontend/react-vite.md)：`frontend`。
+- 两端共同执行 [通用工程规范](standards/common/engineering.md) 与 [中文注释规范](standards/common/comments.md)。
 
-## 项目差异
+## 项目差异与当前采用状态
 
-- 现状依据为 package.json、frontend/package.json、frontend/tsconfig.json、backend/pyproject.toml、package-lock.json、backend/uv.lock 和当前代表性代码。README.md 记录已实现工程，docs/项目决策记录.md 的部分技术建议仍处于规划口径，实际运行与检查入口以配置和代码为准。接入时既有 README 修改及未跟踪工程文件属于此前工作，规范提交只包含 AGENTS.md 与 .ai-dev-standards/。
-- 前端现状为 React 19、TypeScript 5.9、Vite 7、Ant Design 6，后端为 Python \>=3.12、FastAPI、Pydantic 2、SQLAlchemy 2、Alembic 和 uv。前端已通过 ConfigProvider 集中配置中文和主题，TypeScript 已启用 strict、noUnusedLocals 和 noUnusedParameters；这些配置继续有效。
-- 相对 standards/frontend/react-vite.md 的固定选型，项目按根 package.json 使用 npm workspaces 和 package-lock.json，当前 npm 11、Node.js 24 可运行，README 要求 Node.js \>=22.12。沿用 npm；packageManager 与 Node.js/npm 版本固定尚未配置，待按团队运行环境补齐。
-- 前端以 src/styles.css 和 :root 变量维护样式，现有 TS/TSX 使用单引号及无分号风格，尚未配置 UnoCSS、ESLint 或 Prettier。沿用现有风格；styles.css 存在直接覆盖 .ant-\* 的选择器，待实际修改相关组件时评估公开 Token、语义样式接口及作用域收敛。
-- 前端导航沿用 App.tsx 的 location.hash、hashchange 与组件局部状态，未引入 React Router 或 Zustand。当前尚无统一 URL 路由参数及领域 Store；后续深链、筛选恢复或共享状态需求形成时再采用相应方案，并保护既有导航和账号切换行为。
-- HTTP 继续统一经过 frontend/src/api.ts 的 fetch Client，页面和 useLoad.ts 目前直接调用该 Client，尚未拆分领域 Service，也未使用 Axios。Client 采用同源 Cookie 和后端 detail 错误结构；通用泛型返回缺少响应运行时校验、统一超时与 AbortSignal 约束。后续按实际接口改动补领域 Service、解码和取消边界，useLoad 当前通过 active 标记隔离旧响应。
-- 前端当前采用 src 下的扁平页面结构，App.tsx 350 行、Assistant.tsx 超过 500 行，部分文件包含多个导出组件；相对通用规模预警与页面职责要求存在拆分欠账。后续按登录壳、业务交互和页面 Hook 的真实职责渐进整理；已有按页面 lazy 加载。当前构建主包约 738 kB，Vite 提示超过 500 kB，待结合依赖体积评估进一步拆包。
-- 前端 tsconfig 尚未启用 noFallthroughCasesInSwitch；现有入口含非空断言。TypeScript 类型检查与生产构建具备真实入口，前端格式检查、Lint、单元测试及浏览器自动化测试均未配置，不能用类型检查或后端测试替代这些验收。后续先实现并验证入口，再列为必跑项。
-- 相对 standards/backend/fastapi.md 的严格类型要求，backend/pyproject.toml 尚未声明 mypy 或配置后端类型检查，部分公开函数缺少完整类型标注。当前仅登记可用的 Ruff 与 pytest，后端 mypy 检查和独立打包构建入口作为待整改项；前端 typecheck 不代表后端类型已通过。
-- 后端使用 app/main.py 的模块级 FastAPI 实例集中声明路由，app/services.py 编排业务并直接使用 SQLAlchemy Session，尚未形成应用工厂、独立 Router 及按需的 api/application/domain/infrastructure 边界。main.py 超过 Router 规模预警上限；按资源和用例逐步拆分，并显式维护授权、幂等及事务归属。
-- 后端请求 Schema 已限制 extra 字段，现有接口多直接返回字典与 ORM 投影，未完整声明 response\_model、稳定 operation\_id、统一业务错误 code 和请求 ID。前端手写 types.ts 与后端 Schema 并行维护，尚未从 OpenAPI 同步类型。沿用已有 detail 契约，后续修改接口时同步前后端并补充契约测试。
-- 本地数据库沿用 SQLite，README 与 compose.yaml 提供 PostgreSQL 方案；结构变更已采用 Alembic。当前 pytest 使用隔离临时 SQLite 并执行迁移，外部模型调用使用可控替身。PostgreSQL 真实约束、代表性旧数据升级和真实模型供应商验收仍待完成；尚未启用 Celery/Redis、对象存储或 SSE，按实际需求接入。
-- 后端 Ruff 已配置 100 列，当前静态与格式检查命令均可运行；未扩展 Ruff 的类型、文档或注释语义规则。依赖同时声明 httpx 与 httpx2，应用及测试代码当前导入 httpx，待依赖整理时核对 httpx2 的保留必要性。
-- 现有 TS/TSX 尚缺规范要求的中文 @description 文件头及公开声明 JSDoc，部分 Python 模块和公开函数缺少中文 docstring、字段说明及复杂流程阶段注释。按 common/comments.md 和对应技术栈规范，在后续实际修改职责、行为或契约的范围渐进补齐；本次只建立规范记录。
+- 采用仓库内 2026-11-16 提取的通用工程、中文注释、React 与 FastAPI 规范；本轮执行记录见 docs/规范执行记录.md。规范正文与 manifest.json 的原始来源指纹保持不变，PROJECT.md 和 project.json 是项目维护的采用配置。
+- 保留 npm workspaces 与 package-lock.json，区别于前端规范默认 pnpm。packageManager 固定 npm@11.17.0，.node-version 记录 Node.js 24.19.0；engines 要求 Node.js >=22.12、npm >=11。
+- 按用户要求落实 Zustand、UnoCSS、React Router 和 Axios。HashRouter 适配现有同源静态部署，路由装配放在 app/；跨页面客户端状态与服务端数据分离，账号切换清理业务选择和复用输入，不持久化认证秘密。
+- 保留现有页面视觉与受控 styles.css，UnoCSS 已承担核心布局、面板与常规间距。Ant Design 使用 ConfigProvider Token，历史局部 .ant-* 选择器仍有保留；后续修改对应界面时继续收敛到公开语义接口，不为本轮整改整体重设计。
+- 前端按页面、业务 Hook、私有交互、领域 Service 与 Store 拆分。案例列表入口约 165 行，保留同一筛选视图的装配职责；生成契约不受手写文件规模预警约束。
+- FastAPI 已采用应用工厂、独立 Router、application 与 domain。共享输入和响应模型集中于 contracts/；SQLAlchemy Session、ORM 和模型适配按当前规模保留明确模块，未建立空 infrastructure/、Repository 或 UoW 包装。业务写入与幂等记录共享事务。
+- 本机开发保留 SQLite，团队部署使用 PostgreSQL；两种数据库均运行完整业务测试，旧库代表性数据升级另在隔离 SQLite 验证。尚未启用 Celery/Redis、对象存储、SSE、向量检索或 OCR，按真实需求引入。
+- 已配置前端格式、Lint、严格类型、Vitest、构建和契约漂移检查，后端配置 Ruff、mypy strict、pytest 与 Alembic 检查。浏览器场景为本轮实际验收，尚未纳入持久化端到端自动化门禁；真实模型供应商与正式部署验收仍待配置。
 
 ## 检查清单
 
-命令由采用配置提供，仅表示已登记；初始化没有执行它们。按改动确定适用项，运行后记录真实结果。
+在仓库根目录执行；结果及未验收环境记录在本轮执行记录中。
 
-- 前端 TypeScript 类型检查；工作目录：.
+```bash
+npm ci
+npm run check
+npm run check:postgres
+```
 
-    参数数组：\["npm", "run", "typecheck"\]
+`check` 包含实际契约漂移、Prettier、ESLint、TypeScript、Vitest、生产构建、Ruff 静态及格式检查、mypy strict、pytest 和 Alembic 模型漂移。前后端测试均使用合成数据；后端默认隔离 SQLite，PostgreSQL 脚本只管理本次创建的临时容器。Docker 不可用时须如实标记 PostgreSQL 未运行。
 
-- 前端生产构建；工作目录：.
-
-    参数数组：\["npm", "run", "build"\]
-
-- 后端 Ruff 静态检查；工作目录：backend
-
-    参数数组：\["uv", "run", "ruff", "check", "app", "tests", "alembic"\]
-
-- 后端 Ruff 格式检查；工作目录：backend
-
-    参数数组：\["uv", "run", "ruff", "format", "--check", "app", "tests", "alembic"\]
-
-- 后端 pytest 测试；工作目录：backend
-
-    参数数组：\["uv", "run", "pytest", "-q"\]
-
+接口变更后执行 `npm run contract:generate` 同步 OpenAPI、运行时 Schema 与 TypeScript；不要直接编辑生成类型。依赖变更同步锁文件，契约漂移检查不能替代业务或浏览器验收。
 
 ## 提交策略
 
-验证通过后只提交本任务改动；默认不推送。
-当前明确指令优先于规范中的默认策略。
+验证通过后只提交本任务改动；默认不推送。用户明确的提交、推送或保留工作区指令优先于默认策略；不重写既有历史。
 
 ## 来源与副本
 
-规范及入口模板内容集合 SHA-256：1729d3fba3709f79f376dc15d4073f7070d75bd84538df8287903af5a8692f9c
-规范正文中的参考项目提交用于追溯提取依据；工具包来源信息见 manifest.json。
-随附规范可能包含为保持相对链接有效而带入的文档；只有上述选定技术栈默认适用。
-项目内容全部使用仓库内相对引用。工具包更新不自动改写本项目；手工修改后再次执行会检测差异并停止覆盖。
+规范及入口模板内容集合 SHA-256：`1729d3fba3709f79f376dc15d4073f7070d75bd84538df8287903af5a8692f9c`。
+
+规范工具包来源及初始化文件指纹见 [manifest.json](manifest.json)。本轮只更新项目采用说明与配置，未改写规范正文，也未把项目更新伪装成新的上游版本；原始指纹用于追溯，项目配置的手工更新会被后续工具识别为本地差异。参考项目提交仅用于追溯规范提取依据。

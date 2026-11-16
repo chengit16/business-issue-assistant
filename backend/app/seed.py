@@ -1,16 +1,32 @@
 """显式导入虚构演示案例，重复执行不会产生重复数据。"""
 
+from typing import TypedDict
 from uuid import NAMESPACE_URL, uuid5
 
 from sqlalchemy import select
 
+from .application.identity import bootstrap_admin
 from .config import settings
+from .contracts.responses import CaseRead, json_object
 from .db import SessionLocal
-from .main import bootstrap_admin
+from .domain.types import Business
 from .models import Case, CaseRevision, Source, User
-from .services import record_dict
 
-EXAMPLES = [
+
+class DemoCase(TypedDict):
+    """演示数据固定业务字段，不包含真实用户材料。"""
+
+    title: str
+    business: Business
+    symptom: str
+    conditions: str
+    investigation: str
+    cause: str
+    solution: str
+    verification: str
+
+
+EXAMPLES: list[DemoCase] = [
     {
         "title": "客户已扣款，订单仍显示待支付",
         "business": "订单售后",
@@ -54,11 +70,13 @@ EXAMPLES = [
 ]
 
 
-def seed():
+def seed() -> None:
     """按固定编号显式写入虚构演示案例，重复执行保留已有数据。"""
     bootstrap_admin()
     with SessionLocal() as db:
         admin = db.scalar(select(User).where(User.email == settings.admin_email))
+        if not admin:
+            raise RuntimeError("管理员初始化失败")
         count = 0
         for example in EXAMPLES:
             case_id = str(uuid5(NAMESPACE_URL, "business-issue-demo/" + example["title"]))
@@ -85,7 +103,10 @@ def seed():
             db.flush()
             db.add(
                 CaseRevision(
-                    case_id=item.id, version=1, snapshot=record_dict(item), editor_id=admin.id
+                    case_id=item.id,
+                    version=1,
+                    snapshot=json_object(CaseRead.model_validate(item)),
+                    editor_id=admin.id,
                 )
             )
             count += 1

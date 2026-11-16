@@ -3,10 +3,12 @@
 from datetime import UTC, datetime
 from uuid import uuid4
 
+from pydantic import JsonValue
 from sqlalchemy import JSON, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .db import Base
+from .domain.types import Business, Outcome, Progress, Publication, Role, Validity
 
 
 def identifier() -> str:
@@ -26,8 +28,8 @@ class User(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=identifier)
     email: Mapped[str] = mapped_column(String(255), unique=True)
     name: Mapped[str] = mapped_column(String(80))
-    role: Mapped[str] = mapped_column(String(20), default="member")
-    businesses: Mapped[list] = mapped_column(JSON, default=list)
+    role: Mapped[Role] = mapped_column(String(20), default="member")
+    businesses: Mapped[list[Business]] = mapped_column(JSON, default=list)
     password_hash: Mapped[str] = mapped_column(Text)
 
 
@@ -45,7 +47,7 @@ class Source(Base):
 
     __tablename__ = "sources"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=identifier)
-    business: Mapped[str] = mapped_column(String(80))
+    business: Mapped[Business] = mapped_column(String(80))
     text: Mapped[str] = mapped_column(Text)
     owner_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
     attachment_name: Mapped[str | None] = mapped_column(String(255))
@@ -61,7 +63,7 @@ class Case(Base):
     __tablename__ = "cases"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=identifier)
     title: Mapped[str] = mapped_column(String(160))
-    business: Mapped[str] = mapped_column(String(80))
+    business: Mapped[Business] = mapped_column(String(80))
     symptom: Mapped[str] = mapped_column(Text)
     conditions: Mapped[str] = mapped_column(Text, default="")
     investigation: Mapped[str] = mapped_column(Text, default="")
@@ -69,8 +71,8 @@ class Case(Base):
     solution: Mapped[str] = mapped_column(Text, default="")
     verification: Mapped[str] = mapped_column(Text, default="")
     verified_by: Mapped[str | None] = mapped_column(ForeignKey("users.id"))
-    publication: Mapped[str] = mapped_column(String(20), default="draft")
-    validity: Mapped[str] = mapped_column(String(20), default="unverified")
+    publication: Mapped[Publication] = mapped_column(String(20), default="draft")
+    validity: Mapped[Validity] = mapped_column(String(20), default="unverified")
     source_id: Mapped[str] = mapped_column(ForeignKey("sources.id"))
     owner_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
     version: Mapped[int] = mapped_column(default=1)
@@ -90,7 +92,7 @@ class CaseRevision(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=identifier)
     case_id: Mapped[str] = mapped_column(ForeignKey("cases.id"))
     version: Mapped[int]
-    snapshot: Mapped[dict] = mapped_column(JSON)
+    snapshot: Mapped[dict[str, JsonValue]] = mapped_column(JSON)
     editor_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[str] = mapped_column(String(40), default=timestamp)
 
@@ -101,10 +103,10 @@ class Question(Base):
     __tablename__ = "questions"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=identifier)
     text: Mapped[str] = mapped_column(Text)
-    business: Mapped[str] = mapped_column(String(80))
+    business: Mapped[Business] = mapped_column(String(80))
     source_id: Mapped[str | None] = mapped_column(ForeignKey("sources.id"))
     owner_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
-    progress: Mapped[str] = mapped_column(String(20), default="processing")
+    progress: Mapped[Progress] = mapped_column(String(20), default="processing")
     created_at: Mapped[str] = mapped_column(String(40), default=timestamp)
 
 
@@ -116,7 +118,7 @@ class AnalysisRun(Base):
     question_id: Mapped[str] = mapped_column(ForeignKey("questions.id"))
     rule_version: Mapped[str] = mapped_column(String(80))
     model: Mapped[str] = mapped_column(String(80))
-    result: Mapped[dict] = mapped_column(JSON)
+    result: Mapped[dict[str, JsonValue]] = mapped_column(JSON)
     duration_ms: Mapped[int]
     created_at: Mapped[str] = mapped_column(String(40), default=timestamp)
 
@@ -128,7 +130,7 @@ class Feedback(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=identifier)
     question_id: Mapped[str] = mapped_column(ForeignKey("questions.id"))
     author_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
-    outcome: Mapped[str] = mapped_column(String(20))
+    outcome: Mapped[Outcome] = mapped_column(String(20))
     note: Mapped[str] = mapped_column(Text)
     created_at: Mapped[str] = mapped_column(String(40), default=timestamp)
 
@@ -139,4 +141,4 @@ class WriteRequest(Base):
     __tablename__ = "write_requests"
     id: Mapped[str] = mapped_column(String(180), primary_key=True)
     fingerprint: Mapped[str] = mapped_column(String(64))
-    result: Mapped[dict] = mapped_column(JSON)
+    result: Mapped[dict[str, JsonValue]] = mapped_column(JSON)

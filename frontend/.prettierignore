@@ -1,0 +1,4 @@
+# 生成产物由契约命令逐字核对，不能由格式化器二次改写。
+src/api/generated.ts
+src/api/contract.json
+dist/

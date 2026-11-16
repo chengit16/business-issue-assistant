@@ -10,6 +10,25 @@
     "typecheck": "npm run typecheck --workspace frontend",
     "api": "cd backend && uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000",
     "setup:api": "cd backend && uv sync && uv run alembic upgrade head",
-    "seed": "cd backend && uv run python -m app.seed"
+    "seed": "cd backend && uv run python -m app.seed",
+    "lint": "npm run lint --workspace frontend",
+    "format:check": "npm run format:check --workspace frontend",
+    "format": "npm run format --workspace frontend",
+    "test": "npm run test --workspace frontend",
+    "contract:generate": "node frontend/scripts/generateContract.mjs",
+    "contract:check": "node frontend/scripts/generateContract.mjs --check",
+    "check:api": "cd backend && uv run ruff check app tests alembic scripts && uv run ruff format --check app tests alembic scripts && uv run mypy app && uv run pytest -q && uv run alembic check",
+    "check:postgres": "cd backend && uv run python -m scripts.check_postgres",
+    "check": "npm run contract:check && npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build && npm run check:api"
+  },
+  "packageManager": "npm@11.17.0",
+  "engines": {
+    "node": ">=22.12.0",
+    "npm": ">=11.0.0"
+  },
+  "overrides": {
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "11.0.8"
+    }
   }
 }

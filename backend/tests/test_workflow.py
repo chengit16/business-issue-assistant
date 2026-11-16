@@ -1,27 +1,20 @@
 """验证录入、确认、引用与反馈之间的业务约束。"""
 
 import os
-import tempfile
-from pathlib import Path
+from collections.abc import Generator
 from uuid import uuid4
 
 import pytest
-
-# 在导入应用前隔离数据库，测试不会读写本地演示材料。
-_test_dir = tempfile.TemporaryDirectory()
-os.environ["DATABASE_URL"] = f"sqlite:///{_test_dir.name}/test.db"
-os.environ["UPLOAD_DIR"] = str(Path(_test_dir.name) / "uploads")
-os.environ["ADMIN_PASSWORD"] = "test-only-password-2026"
-
 from alembic.config import Config
 from fastapi.testclient import TestClient
+from pydantic import JsonValue, TypeAdapter
 
 from alembic import command
 from app.main import app
 
 
 @pytest.fixture(scope="module")
-def client():
+def client() -> Generator[TestClient, None, None]:
     command.upgrade(Config("alembic.ini"), "head")
     with TestClient(app) as browser:
         result = browser.post(
@@ -32,11 +25,13 @@ def client():
         yield browser
 
 
-def headers():
+def headers() -> dict[str, str]:
+    """每次逻辑写入生成独立幂等键，重试测试显式复用返回值。"""
     return {"Idempotency-Key": str(uuid4())}
 
 
-def draft(client, text="客户已经扣款但订单还是待支付"):
+def draft(client: TestClient, text: str = "客户已经扣款但订单还是待支付") -> dict[str, JsonValue]:
+    """创建合成原文和草稿，同时保护同键重放与异内容拒绝规则。"""
     source = client.post("/api/sources", data={"business": "订单售后", "text": text})
     assert source.status_code == 201, source.text
     payload = {
@@ -57,10 +52,11 @@ def draft(client, text="客户已经扣款但订单还是待支付"):
         client.post("/api/drafts", json={**payload, "title": "其他内容"}, headers=key).status_code
         == 409
     )
-    return response.json()
+    return TypeAdapter(dict[str, JsonValue]).validate_python(response.json())
 
 
-def update_payload(item, **changes):
+def update_payload(item: dict[str, JsonValue], **changes: JsonValue) -> dict[str, JsonValue]:
+    """只提交公开可编辑字段，保留预期版本以验证并发覆盖保护。"""
     fields = (
         "title",
         "symptom",
@@ -76,7 +72,7 @@ def update_payload(item, **changes):
     return {**{key: item[key] for key in fields}, **changes}
 
 
-def test_full_workflow_and_version_conflict(client):
+def test_full_workflow_and_version_conflict(client: TestClient) -> None:
     item = draft(client)
     assert item["publication"] == "pending"
     assert item["validity"] == "unverified"
@@ -115,7 +111,7 @@ def test_full_workflow_and_version_conflict(client):
     assert client.get(f"/api/sources/{item['source_id']}").json()["text"] == item["symptom"]
 
 
-def test_unpublished_and_invalid_cases_are_not_recommended(client):
+def test_unpublished_and_invalid_cases_are_not_recommended(client: TestClient) -> None:
     item = draft(client, "专用检索文本灯塔标记")
     result = client.post(
         "/api/analyses", json={"text": "灯塔标记", "business": "订单售后"}, headers=headers()
@@ -131,7 +127,7 @@ def test_unpublished_and_invalid_cases_are_not_recommended(client):
     assert not result["run"]["result"]["citations"]
 
 
-def test_permissions_cover_sources_and_publication(client):
+def test_permissions_cover_sources_and_publication(client: TestClient) -> None:
     item = draft(client)
     person = {
         "email": "member@example.com",
@@ -149,8 +145,10 @@ def test_permissions_cover_sources_and_publication(client):
             ).status_code
             == 200
         )
-        assert member.get(f"/api/cases/{item['id']}").status_code == 403
-        assert member.get(f"/api/sources/{item['source_id']}").status_code == 403
+        for path in (f"/api/cases/{item['id']}", f"/api/sources/{item['source_id']}"):
+            hidden = member.get(path)
+            assert hidden.status_code == 404
+            assert hidden.json()["code"] == "NOT_FOUND"
         assert (
             member.post(
                 "/api/analyses",
@@ -181,7 +179,7 @@ def test_permissions_cover_sources_and_publication(client):
         assert member.get("/api/auth/me").status_code == 401
 
 
-def test_upload_signature_size_and_csrf(client):
+def test_upload_signature_size_and_csrf(client: TestClient) -> None:
     response = client.post(
         "/api/sources",
         data={"business": "订单售后", "text": "测试图片"},
@@ -200,7 +198,9 @@ def test_upload_signature_size_and_csrf(client):
     )
 
 
-def test_model_adapter_and_retry_preserve_source(client, monkeypatch):
+def test_model_adapter_and_retry_preserve_source(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
     import json
 
     import httpx
@@ -218,7 +218,7 @@ def test_model_adapter_and_retry_preserve_source(client, monkeypatch):
         "reply": "请补充订单编号和渠道",
     }
 
-    def respond(url, **kwargs):
+    def respond(url: str, **kwargs: object) -> httpx.Response:
         calls.append(kwargs["json"])
         return httpx.Response(
             200,
@@ -236,7 +236,7 @@ def test_model_adapter_and_retry_preserve_source(client, monkeypatch):
     assert result.json()["run"]["result"]["mode"] == "model"
     assert json.loads(calls[0]["messages"][1]["content"])["source_text"] == "原始背景独立编号 XYZ"
 
-    def malformed(url, **kwargs):
+    def malformed(url: str, **kwargs: object) -> httpx.Response:
         return httpx.Response(
             200,
             json={"choices": [{"message": {"content": "{}"}}]},
@@ -260,14 +260,14 @@ def test_model_adapter_and_retry_preserve_source(client, monkeypatch):
     assert preview.json()["rule_version"].startswith("intake-v1-")
 
 
-def test_single_character_first_line_preview(client):
+def test_single_character_first_line_preview(client: TestClient) -> None:
     response = client.post(
         "/api/drafts/preview", json={"text": "甲\n订单出现错误", "business": "订单售后"}
     )
     assert response.status_code == 200, response.text
 
 
-def test_cached_analysis_rechecks_current_citations(client):
+def test_cached_analysis_rechecks_current_citations(client: TestClient) -> None:
     item = draft(client, "回放版本核对专用标记")
     published = client.put(
         f"/api/cases/{item['id']}",

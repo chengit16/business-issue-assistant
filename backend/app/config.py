@@ -1,39 +1,49 @@
-"""集中读取数据库、文件与模型配置，并在启动时拒绝不完整的部署参数。"""
+"""在启动边界集中读取并校验配置，错误与对象表示均隐藏秘密字段。"""
 
 from pathlib import Path
+from typing import Self
+from urllib.parse import urlparse
 
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """启动配置，模型参数需同时提供，开发默认口令仅用于本地。"""
+    """运行配置，模型服务参数需同时提供，文件系统写入由实际业务入口执行。"""
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", hide_input_in_errors=True)
 
-    database_url: str = "sqlite:///./data/assistant.db"
+    database_url: str = Field(default="sqlite:///./data/assistant.db", repr=False)
     upload_dir: Path = Path("data/uploads")
-    admin_email: str = "admin@example.com"
-    admin_name: str = "知识维护人"
-    admin_password: str = "local-dev-2026"
+    admin_email: str = Field(default="admin@example.com", min_length=3, max_length=255)
+    admin_name: str = Field(default="知识维护人", min_length=1, max_length=80)
+    admin_password: str = Field(default="local-dev-2026", min_length=10, max_length=256, repr=False)
     cookie_secure: bool = False
     app_env: str = "development"
     model_base_url: str = ""
-    model_api_key: str = ""
+    model_api_key: str = Field(default="", repr=False)
     model_name: str = ""
 
     @property
     def model_enabled(self) -> bool:
+        """三项参数齐备才启用模型，部分配置在启动校验时拒绝。"""
         return bool(self.model_base_url and self.model_api_key and self.model_name)
+
+    @model_validator(mode="after")
+    def validate_runtime(self) -> Self:
+        """拒绝不完整模型配置及部署环境的演示口令，异常不回显具体秘密。"""
+        if self.app_env != "development" and self.admin_password == "local-dev-2026":
+            raise ValueError("部署环境必须设置 ADMIN_PASSWORD")
+        if (
+            any((self.model_base_url, self.model_api_key, self.model_name))
+            and not self.model_enabled
+        ):
+            raise ValueError("模型服务需要同时配置 MODEL_BASE_URL、MODEL_API_KEY、MODEL_NAME")
+        if self.model_enabled:
+            endpoint = urlparse(self.model_base_url)
+            if endpoint.scheme not in ("http", "https") or not endpoint.netloc:
+                raise ValueError("MODEL_BASE_URL 必须是有效的 HTTP 服务地址")
+        return self
 
 
 settings = Settings()
-# 演示口令仅供本地运行，部署时必须显式配置管理员凭证。
-if settings.app_env != "development" and settings.admin_password == "local-dev-2026":
-    raise RuntimeError("部署环境必须设置 ADMIN_PASSWORD")
-settings.upload_dir.mkdir(parents=True, exist_ok=True)
-
-if (
-    any((settings.model_base_url, settings.model_api_key, settings.model_name))
-    and not settings.model_enabled
-):
-    raise RuntimeError("模型服务需要同时配置 MODEL_BASE_URL、MODEL_API_KEY、MODEL_NAME")

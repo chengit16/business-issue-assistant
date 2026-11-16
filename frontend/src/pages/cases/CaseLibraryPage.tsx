@@ -1,7 +1,5 @@
-/**
- * @description 按当前业务加载案例并筛选发布与验证状态，实际可见范围由服务端授权决定。
- */
-import { useState } from 'react'
+/** @description 维护业务案例列表与 URL 筛选，刷新、分享和前进后退恢复同一查询。 */
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Alert, Button, Empty, Input, Segmented, Skeleton, Tag } from 'antd'
 import {
   ArrowRightOutlined,
@@ -9,32 +7,48 @@ import {
   PlusOutlined,
   SearchOutlined,
 } from '@ant-design/icons'
-import { useLoad } from './useLoad'
-import type { Business, Case } from './types'
-import { publicationLabels, validityLabels } from './types'
+import { useCases } from '../../hooks/useCases'
+import type { Business } from '../../types'
+import { publicationLabels, validityLabels } from '../../types'
+
+interface CaseLibraryPageProps {
+  /** 当前账号允许访问的业务。 */
+  business: Business
+  /** 通过路由定位案例。 */
+  openCase: (id: string) => void
+  /** 为真时只展示可见草稿和待确认案例，默认展示案例库。 */
+  review?: boolean
+}
 
 /** 加载当前业务案例，review 模式展示可访问的草稿及待确认记录。 */
-export function CaseLibrary({
-  business,
-  openCase,
-  onIntake,
-  review = false,
-}: {
-  business: Business
-  openCase: (id: string) => void
-  onIntake: () => void
-  review?: boolean
-}) {
-  const [query, setQuery] = useState('')
-  const [search, setSearch] = useState('')
-  const [filter, setFilter] = useState('全部')
-  const state = useLoad<Case[]>(
-    `/cases?business=${encodeURIComponent(business)}&q=${encodeURIComponent(search)}`,
-  )
+export function CaseLibraryPage({ business, openCase, review = false }: CaseLibraryPageProps) {
+  const navigate = useNavigate()
+  const [parameters, setParameters] = useSearchParams()
+  const search = parameters.get('q') ?? ''
+  const filter =
+    ['全部', '已验证', '待验证', '已失效'].find((value) => value === parameters.get('validity')) ??
+    '全部'
+  const state = useCases(business, search)
+  function setSearch(value: string) {
+    setParameters((previous) => {
+      const next = new URLSearchParams(previous)
+      next.set('q', value)
+      return next
+    })
+  }
+  function setFilter(value: string) {
+    setParameters((previous) => {
+      const next = new URLSearchParams(previous)
+      next.set('validity', value)
+      return next
+    })
+  }
+  function onIntake() {
+    void navigate(`/intake?${new URLSearchParams({ business })}`)
+  }
   const items = (state.data || []).filter((item) => {
     if (review) return ['pending', 'draft'].includes(item.publication)
-    if (filter === '已验证')
-      return item.publication === 'published' && item.validity === 'verified'
+    if (filter === '已验证') return item.publication === 'published' && item.validity === 'verified'
     if (filter === '待验证') return item.validity === 'unverified'
     if (filter === '已失效') return item.validity === 'invalid'
     return true
@@ -61,8 +75,8 @@ export function CaseLibrary({
         <Input.Search
           aria-label="搜索案例"
           placeholder="搜索问题、错误码或关键词"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          defaultValue={search}
+          key={search}
           onSearch={setSearch}
           allowClear
           prefix={<SearchOutlined />}
@@ -90,7 +104,7 @@ export function CaseLibrary({
           action={<Button onClick={state.reload}>重试</Button>}
         />
       )}
-      {state.loading ? (
+      {state.isLoading ? (
         <Skeleton active />
       ) : !items.length ? (
         <div className="panel empty-library">
@@ -108,11 +122,7 @@ export function CaseLibrary({
       ) : (
         <div className="case-grid">
           {items.map((item) => (
-            <button
-              className="case-card"
-              key={item.id}
-              onClick={() => openCase(item.id)}
-            >
+            <button className="case-card" key={item.id} onClick={() => openCase(item.id)}>
               <div className="case-card-top">
                 <span className="case-file">
                   <FileTextOutlined />
@@ -143,8 +153,7 @@ export function CaseLibrary({
                   {publicationLabels[item.publication]} · v{item.version}
                 </span>
                 <span>
-                  {new Date(item.updated_at).toLocaleDateString('zh-CN')}{' '}
-                  <ArrowRightOutlined />
+                  {new Date(item.updated_at).toLocaleDateString('zh-CN')} <ArrowRightOutlined />
                 </span>
               </div>
             </button>
