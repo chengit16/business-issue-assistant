@@ -1,0 +1,20 @@
+{
+  "agents_block_sha256": "1d7d6f5a5efc2e9cebdf03925c195f9cc375e6343bf3bf2a608cf204ebf69a6f",
+  "files": {
+    "PROJECT.md": "bebb1e5de1a3ff33273b2678fb784d3bacdf6653489323fe66b64034a57fd729",
+    "project.json": "cd0854927d6265bc1d0f99f3bce869f9126386cb737964d3a6632d70302b772b",
+    "standards/backend/fastapi.md": "e1c876ba631e7a9e4620aa1e29a0a6f98452e44e834c2eb9b1b9c62c8607f530",
+    "standards/backend/nestjs-fastify.md": "b360b551a61b42ac0ffa54095cd274843371f6777207e0b5baed23174cc084a1",
+    "standards/common/comments.md": "a933eb2b6faa1b9599b985b16d6c08631e040eb8b5d50a503fd1cceec0cbb44b",
+    "standards/common/engineering.md": "2854039fbf0fea14af26c550b159ef305d993f86ca276586ed51eaa6cbab3307",
+    "standards/frontend/react-vite.md": "aaffdb9d4c11adc5530906ecfe6604956636df268267a61a6c9bffa809e42435"
+  },
+  "owner": "ai-dev-standards",
+  "schema_version": 1,
+  "source": {
+    "content_sha256": "1729d3fba3709f79f376dc15d4073f7070d75bd84538df8287903af5a8692f9c",
+    "git_commit": "b672d48b48d0ef86fa4b00080377a86ff36d1abf",
+    "repository": "ai-dev-standards",
+    "working_tree_dirty": false
+  }
+}
