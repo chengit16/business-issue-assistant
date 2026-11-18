@@ -42,8 +42,18 @@ class LoginSession(Base):
     expires_at: Mapped[float]
 
 
+class ModelProfile(Base):
+    """保存可选择的模型连接，API 密钥与运行快照同样只保存密文。"""
+
+    __tablename__ = "model_profiles"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=identifier)
+    address: Mapped[str] = mapped_column(Text)
+    model: Mapped[str] = mapped_column(String(200))
+    encrypted_key: Mapped[str] = mapped_column(Text)
+
+
 class ModelSettings(Base):
-    """保存全团队唯一的模型配置，密钥只保存密文，版本用于拒绝并发覆盖。"""
+    """保存单一生效配置及版本，旧接口仍可读取最后一次启用的连接快照。"""
 
     __tablename__ = "model_settings"
     __table_args__ = (CheckConstraint("id = 1", name="ck_model_settings_singleton"),)
@@ -55,6 +65,9 @@ class ModelSettings(Base):
     encrypted_key: Mapped[str] = mapped_column(Text)
     updated_by: Mapped[str] = mapped_column(String(36))
     updated_at: Mapped[str] = mapped_column(String(40))
+    profile_id: Mapped[str | None] = mapped_column(
+        ForeignKey("model_profiles.id", name="fk_model_settings_profile")
+    )
 
 
 class Source(Base):

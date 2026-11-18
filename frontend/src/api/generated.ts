@@ -428,6 +428,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/model/profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Profiles
+         * @description 读取所有已保存模型，标记团队实际启用的一项。
+         */
+        get: operations["readModelLibrary"];
+        put?: never;
+        /**
+         * Create Profile
+         * @description 将通过测试的配置加入列表，保留当前运行方式。
+         */
+        post: operations["createModelProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/model/profiles/{profile_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update Profile
+         * @description 保存选定配置的参数，若此项正在运行则同步更新其连接快照。
+         */
+        put: operations["updateModelProfile"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/settings/model/active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Activate
+         * @description 启用已保存的模型或切回本地规则，版本冲突时拒绝覆盖。
+         */
+        put: operations["activateModelProfile"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -895,6 +959,16 @@ export interface components {
             password: string;
         };
         /**
+         * ModelActivationInput
+         * @description 以配置版本为条件切换团队模型，空编号表示本地规则。
+         */
+        ModelActivationInput: {
+            /** Profile Id */
+            profile_id: string | null;
+            /** Version */
+            version: number;
+        };
+        /**
          * ModelCatalogInput
          * @description 读取供应商模型列表，只接收对应地址的凭证和当前配置版本。
          */
@@ -915,6 +989,11 @@ export interface components {
              * @description 读取配置时的版本，环境变量初始版本为 0
              */
             version: number;
+            /**
+             * Credential Profile Id
+             * @description 同地址可复用的配置编号
+             */
+            credential_profile_id?: string | null;
         };
         /**
          * ModelCatalogRead
@@ -946,11 +1025,85 @@ export interface components {
              */
             version: number;
             /**
+             * Credential Profile Id
+             * @description 同地址可复用的配置编号
+             */
+            credential_profile_id?: string | null;
+            /**
              * Model
              * @description 供应商配置的模型名称
              * @default
              */
             model: string;
+        };
+        /**
+         * ModelLibraryRead
+         * @description 团队连接列表和唯一启用项，版本用于拒绝过期保存或切换。
+         */
+        ModelLibraryRead: {
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "model" | "local_rules";
+            /** Active Profile Id */
+            active_profile_id: string | null;
+            /** Version */
+            version: number;
+            /** Profiles */
+            profiles: components["schemas"]["ModelProfileRead"][];
+        };
+        /**
+         * ModelProfileInput
+         * @description 保存单套已测试的连接，由独立操作选择启用的模型。
+         */
+        ModelProfileInput: {
+            /**
+             * Address
+             * @description 模型接口基础地址
+             * @default
+             */
+            address: string;
+            /**
+             * Api Key
+             * @description 同地址留空复用已有密钥
+             */
+            api_key?: string | null;
+            /**
+             * Version
+             * @description 读取配置时的版本，环境变量初始版本为 0
+             */
+            version: number;
+            /**
+             * Credential Profile Id
+             * @description 同地址可复用的配置编号
+             */
+            credential_profile_id?: string | null;
+            /**
+             * Model
+             * @description 供应商配置的模型名称
+             * @default
+             */
+            model: string;
+            /**
+             * Test Token
+             * Format: password
+             */
+            test_token: string;
+        };
+        /**
+         * ModelProfileRead
+         * @description 单套连接的安全视图，密钥只显示配置状态。
+         */
+        ModelProfileRead: {
+            /** Id */
+            id: string;
+            /** Address */
+            address: string;
+            /** Model */
+            model: string;
+            /** Has Api Key */
+            has_api_key: boolean;
         };
         /**
          * ModelSettingsInput
@@ -973,6 +1126,11 @@ export interface components {
              * @description 读取配置时的版本，环境变量初始版本为 0
              */
             version: number;
+            /**
+             * Credential Profile Id
+             * @description 同地址可复用的配置编号
+             */
+            credential_profile_id?: string | null;
             /**
              * Model
              * @description 供应商配置的模型名称
@@ -3304,6 +3462,388 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ModelTestRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+        };
+    };
+    readModelLibrary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelLibraryRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+        };
+    };
+    createModelProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModelProfileInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelLibraryRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+        };
+    };
+    updateModelProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                profile_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModelProfileInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelLibraryRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+        };
+    };
+    activateModelProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModelActivationInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelLibraryRead"];
                 };
             };
             /** @description Unauthorized */

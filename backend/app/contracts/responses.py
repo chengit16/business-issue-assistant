@@ -175,6 +175,24 @@ class ModelCatalogRead(BaseModel):
     models: list[str]
 
 
+class ModelProfileRead(BaseModel):
+    """单套连接的安全视图，密钥只显示配置状态。"""
+
+    id: str
+    address: str
+    model: str
+    has_api_key: bool
+
+
+class ModelLibraryRead(BaseModel):
+    """团队连接列表和唯一启用项，版本用于拒绝过期保存或切换。"""
+
+    mode: AnalysisMode
+    active_profile_id: str | None
+    version: int
+    profiles: list[ModelProfileRead]
+
+
 class ModelTestRead(BaseModel):
     """测试通过后签发短期凭证，保存时绑定账号、参数与配置版本。"""
 

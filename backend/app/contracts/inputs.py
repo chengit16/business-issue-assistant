@@ -57,6 +57,9 @@ class ModelCatalogInput(Command):
         default=None, max_length=4096, description="同地址留空复用已有密钥"
     )
     version: int = Field(ge=0, description="读取配置时的版本，环境变量初始版本为 0")
+    credential_profile_id: str | None = Field(
+        default=None, min_length=1, max_length=36, description="同地址可复用的配置编号"
+    )
 
 
 class ModelConnectionInput(ModelCatalogInput):
@@ -70,3 +73,16 @@ class ModelSettingsInput(ModelConnectionInput):
 
     mode: AnalysisMode
     test_token: SecretStr | None = Field(default=None, max_length=2048)
+
+
+class ModelProfileInput(ModelConnectionInput):
+    """保存单套已测试的连接，由独立操作选择启用的模型。"""
+
+    test_token: SecretStr = Field(max_length=2048)
+
+
+class ModelActivationInput(Command):
+    """以配置版本为条件切换团队模型，空编号表示本地规则。"""
+
+    profile_id: str | None = Field(min_length=1, max_length=36)
+    version: int = Field(ge=0)

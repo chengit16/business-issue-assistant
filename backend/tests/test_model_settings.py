@@ -15,7 +15,7 @@ from app.config import settings
 from app.db import SessionLocal
 from app.factory import create_app
 from app.model_connection import ModelConnection
-from app.models import ModelSettings
+from app.models import ModelProfile, ModelSettings
 
 PATH = "/api/settings/model"
 CATALOG_PATH = f"{PATH}/models"
@@ -35,6 +35,7 @@ def admin() -> Generator[TestClient, None, None]:
         finally:
             with SessionLocal() as db:
                 db.execute(delete(ModelSettings))
+                db.execute(delete(ModelProfile))
                 db.commit()
 
 
@@ -136,6 +137,10 @@ def test_configuration_access_and_private_endpoint_rejection(admin: TestClient) 
             == 200
         )
         assert client.get(PATH).status_code == 403
+        assert client.get(f"{PATH}/profiles").status_code == 403
+        assert (
+            client.put(f"{PATH}/active", json={"version": 0, "profile_id": None}).status_code == 403
+        )
         assert client.post(CATALOG_PATH, json={"version": 0}).status_code == 403
         assert client.post(f"{PATH}/test", json=private).status_code == 403
         assert client.put(PATH, json={"mode": "local_rules", "version": 0}).status_code == 403
@@ -188,3 +193,80 @@ def test_catalog_uses_current_credentials_without_saving_configuration(
     assert rejected.status_code == 502
     assert rejected.json()["code"] == "MODEL_CATALOG_UNAVAILABLE"
     assert key not in rejected.text
+
+
+def test_saved_models_are_activated_separately(
+    admin: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """新增保留原状态，切换只有一套生效，并保留备用配置及其密钥。"""
+
+    def post(
+        connection: ModelConnection, headers: dict[str, str], body: dict[str, JsonValue]
+    ) -> httpx.Response:
+        assert headers["Authorization"] == "Bearer fixture-profile-key"
+        content = (
+            {"ok": True}
+            if '"ok": true' in json.dumps(body, ensure_ascii=False).replace('\\"', '"')
+            else {"title": connection.model, "symptom": "验证模型切换"}
+        )
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": json.dumps(content)}}]},
+            request=httpx.Request("POST", connection.address),
+        )
+
+    monkeypatch.setattr(provider, "_post", post)
+    data = {
+        "address": "https://provider.example/v1",
+        "api_key": "fixture-profile-key",
+        "model": "alpha",
+        "version": 0,
+    }
+
+    def add(
+        values: dict[str, JsonValue], path: str = f"{PATH}/profiles", method: str = "POST"
+    ) -> dict[str, JsonValue]:
+        tested = admin.post(f"{PATH}/test", json=values)
+        assert tested.status_code == 200, tested.text
+        saved = admin.request(method, path, json={**values, **tested.json()})
+        assert saved.status_code in (200, 201), saved.text
+        assert "fixture-profile-key" not in saved.text
+        return saved.json()
+
+    first = add(data)
+    assert first["mode"] == "local_rules" and first["active_profile_id"] is None
+    first_id = first["profiles"][0]["id"]
+    enabled = admin.put(f"{PATH}/active", json={"profile_id": first_id, "version": 1})
+    assert enabled.json()["active_profile_id"] == first_id
+    beta = {
+        "address": data["address"],
+        "credential_profile_id": first_id,
+        "model": "beta",
+        "version": 2,
+    }
+    second = add(beta)
+    second_id = second["profiles"][1]["id"]
+    assert second["active_profile_id"] == first_id
+    assert admin.get(PATH).json()["model"] == "alpha"
+    stale = admin.put(f"{PATH}/active", json={"profile_id": second_id, "version": 2})
+    assert stale.status_code == 409
+    assert (
+        admin.put(f"{PATH}/active", json={"profile_id": second_id, "version": 3}).json()[
+            "active_profile_id"
+        ]
+        == second_id
+    )
+    preview = admin.post(
+        "/api/drafts/preview", json={"business": "订单售后", "text": "测试模型选择"}
+    )
+    assert preview.json()["title"] == "beta"
+    edited = add(
+        {**beta, "credential_profile_id": second_id, "version": 4, "model": "beta-edit"},
+        f"{PATH}/profiles/{second_id}",
+        "PUT",
+    )
+    assert edited["active_profile_id"] == second_id
+    assert admin.get(PATH).json()["model"] == "beta-edit"
+    stopped = admin.put(f"{PATH}/active", json={"profile_id": None, "version": 5}).json()
+    assert stopped["mode"] == "local_rules" and stopped["active_profile_id"] is None
+    assert [profile["model"] for profile in stopped["profiles"]] == ["alpha", "beta-edit"]

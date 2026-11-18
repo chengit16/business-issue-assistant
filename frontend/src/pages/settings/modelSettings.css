@@ -1,4 +1,4 @@
-/* 复用工作台的面板与颜色，将生效状态放在编辑表单旁边供维护人核对。 */
+/* 复用工作台的面板与颜色，将生效状态放在列表旁边供维护人核对。 */
 .model-settings {
   max-width: 960px;
 }
@@ -31,17 +31,6 @@
   font-size: 13px;
 }
 
-.model-uses {
-  display: grid;
-  gap: 12px;
-  margin: 18px 0 0;
-  padding: 16px 0 0;
-  border-top: 1px solid #d4e4d9;
-  list-style: none;
-  font-size: 14px;
-}
-
-.model-uses li,
 .model-protocol,
 .model-actions {
   display: flex;
@@ -73,4 +62,66 @@
   .model-context {
     grid-row: 1;
   }
+}
+
+/* 启用项采用与当前运行状态一致的浅绿色，备用项以分隔线组织。 */
+.model-list-heading,
+.model-profile-row,
+.model-profile-title,
+.model-profile-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.model-list-heading,
+.model-profile-row {
+  justify-content: space-between;
+}
+
+.model-list-heading h2 {
+  margin-bottom: 4px;
+}
+
+.model-list-heading p,
+.model-profile-address {
+  color: #607168;
+  font-size: 13px;
+}
+
+.model-list-heading p {
+  margin-bottom: 0;
+}
+
+.model-profile-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+}
+
+.model-profile-row {
+  padding: 12px;
+  border-top: 1px solid #e5eae4;
+  flex-wrap: wrap;
+}
+
+.model-profile-active {
+  border-top-color: transparent;
+  background: #eff5f1;
+  border-radius: 8px;
+}
+
+.model-profile-detail {
+  min-width: 0;
+  flex: 1 1 180px;
+  overflow-wrap: anywhere;
+}
+
+.model-profile-title {
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.model-profile-actions {
+  margin-left: auto;
 }
