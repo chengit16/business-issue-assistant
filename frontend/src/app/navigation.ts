@@ -5,10 +5,12 @@ import {
   HistoryOutlined,
   MessageOutlined,
   PlusOutlined,
+  SettingOutlined,
 } from '@ant-design/icons'
 
 /** 工作台支持的稳定路由路径。 */
-export type PagePath = '/assistant' | '/cases' | '/intake' | '/records' | '/review'
+export type PagePath =
+  '/assistant' | '/cases' | '/intake' | '/records' | '/review' | '/settings/model'
 interface NavigationItem {
   path: PagePath
   title: string
@@ -22,3 +24,10 @@ export const navigation: NavigationItem[] = [
   { path: '/records', title: '我的提问', icon: HistoryOutlined },
   { path: '/review', title: '待确认', icon: CheckSquareOutlined },
 ]
+
+/** 模型配置作用于整个团队，入口独立于按业务工作的主导航。 */
+export const modelSettings: NavigationItem = {
+  path: '/settings/model',
+  title: '模型配置',
+  icon: SettingOutlined,
+}

@@ -152,6 +152,14 @@ h3 {
 .nav-item .ant-badge {
   margin-left: auto;
 }
+.settings-nav {
+  margin: 12px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.mobile-model-link {
+  display: none;
+}
 .sidebar-note {
   margin: auto 3px 24px;
   padding: 19px 13px 9px;
@@ -1193,6 +1201,23 @@ h3 {
   display: none;
 }
 @media (max-width: 680px) {
+  /* 将管理入口留在品牌栏，避免挤占五个常用业务入口。 */
+  .sidebar .settings-nav {
+    display: none;
+  }
+  .mobile-model-link {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    min-height: 40px;
+    padding: 4px 8px;
+    border-radius: 7px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .mobile-model-link:is(.active, :hover) {
+    background: #eaf2eb;
+  }
   .nav-item {
     flex: 1;
     min-width: 0;

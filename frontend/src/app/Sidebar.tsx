@@ -4,7 +4,7 @@ import { ArrowRightOutlined, BookOutlined, LogoutOutlined, TeamOutlined } from '
 import { NavLink } from 'react-router-dom'
 import type { Business, User } from '../types'
 import { roleLabels } from '../types'
-import { navigation } from './navigation'
+import { modelSettings, navigation } from './navigation'
 
 interface SidebarProps {
   /** 后台返回的当前账号。 */
@@ -20,14 +20,28 @@ interface SidebarProps {
 /** 导航保持业务参数，个人身份不持久化到浏览器存储。 */
 export function Sidebar({ user, business, pending, onLogout }: SidebarProps) {
   const search = `?${new URLSearchParams({ business })}`
+  const canManageModel = user.role === 'maintainer'
+  const SettingsIcon = modelSettings.icon
+  const settingsLink = (variant: string) => (
+    <NavLink
+      to={`${modelSettings.path}${search}`}
+      className={({ isActive }) => `${variant}${isActive ? ' active' : ''}`}
+    >
+      <SettingsIcon aria-hidden />
+      <span>{modelSettings.title}</span>
+    </NavLink>
+  )
   return (
     <aside className="sidebar flex flex-col">
-      <NavLink className="brand" to={`/assistant${search}`}>
-        <span className="brand-mark">知</span>
-        <span>
-          业务问题助手<small>团队经验工作台</small>
-        </span>
-      </NavLink>
+      <div className="flex items-center justify-between">
+        <NavLink className="brand" to={`/assistant${search}`}>
+          <span className="brand-mark">知</span>
+          <span>
+            业务问题助手<small>团队经验工作台</small>
+          </span>
+        </NavLink>
+        {canManageModel && settingsLink('mobile-model-link')}
+      </div>
       <div className="workspace-label">
         <TeamOutlined /> 团队空间 <span>内部</span>
       </div>
@@ -47,6 +61,11 @@ export function Sidebar({ user, business, pending, onLogout }: SidebarProps) {
           )
         })}
       </nav>
+      {canManageModel && (
+        <nav className="settings-nav" aria-label="团队管理">
+          {settingsLink('nav-item')}
+        </nav>
+      )}
       <div className="sidebar-note">
         <span className="note-icon">
           <BookOutlined />

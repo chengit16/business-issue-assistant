@@ -11,7 +11,7 @@ import type { Business, User } from '../types'
 import { Sidebar } from './Sidebar'
 import { WorkspaceHeader } from './WorkspaceHeader'
 import { WorkspaceRoutes } from './WorkspaceRoutes'
-import { navigation } from './navigation'
+import { modelSettings, navigation } from './navigation'
 
 const CaseDetail = lazy(() =>
   import('../pages/cases/CaseDetail').then((module) => ({ default: module.CaseDetail })),
@@ -38,6 +38,7 @@ export function Workspace({ user }: WorkspaceProps) {
     selectedBusiness ??
     user.businesses[0]
   const overview = useQuery({ key: `overview:${user.id}:${revision}`, load: readOverview })
+  const isModelSettings = location.pathname === modelSettings.path
   const openCase = useCallback(
     (id: string) =>
       setSearch((previous) => {
@@ -66,7 +67,7 @@ export function Workspace({ user }: WorkspaceProps) {
     selectBusiness(next)
     setSearch(new URLSearchParams({ business: next }))
   }
-  const selectedCase = search.get('case')
+  const selectedCase = isModelSettings ? null : search.get('case')
   return (
     <div className="workspace min-h-screen">
       <Sidebar
@@ -77,15 +78,25 @@ export function Workspace({ user }: WorkspaceProps) {
       />
       <div className="main-shell min-h-screen flex flex-col">
         <WorkspaceHeader
-          title={navigation.find((item) => item.path === location.pathname)?.title ?? '页面不存在'}
+          title={
+            isModelSettings
+              ? modelSettings.title
+              : (navigation.find((item) => item.path === location.pathname)?.title ?? '页面不存在')
+          }
           business={business}
           businesses={user.businesses}
-          modelEnabled={overview.data?.analysis_mode === 'model'}
+          analysisMode={overview.data?.analysis_mode}
+          showBusiness={!isModelSettings}
           onBusiness={changeBusiness}
           onLogout={() => void onLogout()}
         />
         <main className="main-content flex-1">
-          <WorkspaceRoutes business={business} openCase={openCase} />
+          <WorkspaceRoutes
+            business={business}
+            openCase={openCase}
+            role={user.role}
+            analysisMode={overview.data?.analysis_mode}
+          />
         </main>
         <footer className="page-footer flex justify-between">
           <span>业务问题助手</span>

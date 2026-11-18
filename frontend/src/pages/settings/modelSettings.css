@@ -1,0 +1,90 @@
+/* 复用工作台的面板与颜色，将生效状态放在编辑表单旁边供维护人核对。 */
+.model-settings {
+  max-width: 960px;
+}
+
+.model-settings-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(224px, 30%);
+  gap: 20px;
+  align-items: start;
+}
+
+.model-context {
+  background: #eff5f1;
+}
+
+.model-context h2 {
+  margin-bottom: 8px;
+}
+
+.model-live-mode {
+  display: block;
+  color: var(--green);
+  font-size: 23px;
+  font-weight: 600;
+}
+
+.model-scope {
+  margin-top: 6px;
+  color: #607168;
+  font-size: 13px;
+}
+
+.model-uses {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0 0;
+  padding: 16px 0 0;
+  border-top: 1px solid #d4e4d9;
+  list-style: none;
+  font-size: 14px;
+}
+
+.model-uses li,
+.model-protocol,
+.model-key-row,
+.model-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.model-key-row {
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  color: #64745b;
+  font-size: 12px;
+}
+
+.model-actions {
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+
+.model-test-result:not(:empty) {
+  margin-top: 16px;
+}
+
+.model-applied {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #d4e4d9;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 960px) {
+  .model-settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* 窄屏先给出生效状态，让维护人滚动到表单前就能知道实际运行方式。 */
+  .model-context {
+    grid-row: 1;
+  }
+}
