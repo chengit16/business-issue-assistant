@@ -2,7 +2,7 @@
 import { lazy, Suspense } from 'react'
 import { Alert, Spin } from 'antd'
 import { Link, Navigate, Route, Routes, useNavigate } from 'react-router-dom'
-import type { AnalysisMode, Business, User } from '../types'
+import type { Business, User } from '../types'
 import { modelSettings } from './navigation'
 
 const Assistant = lazy(() =>
@@ -29,12 +29,12 @@ interface WorkspaceRoutesProps {
   openCase: (id: string) => void
   /** 用于控制团队管理界面入口，不能代替服务端授权。 */
   role: User['role']
-  /** 后台返回的实际运行模式，供预览页面对照。 */
-  analysisMode?: AnalysisMode
+  /** 团队配置成功保存后刷新页头运行状态。 */
+  onModelSaved: () => void
 }
 
 /** 每个业务范围重新挂载页面，隔离旧表单和晚到请求。 */
-export function WorkspaceRoutes({ business, openCase, role, analysisMode }: WorkspaceRoutesProps) {
+export function WorkspaceRoutes({ business, openCase, role, onModelSaved }: WorkspaceRoutesProps) {
   const navigate = useNavigate()
   return (
     <Suspense fallback={<Spin description="正在加载页面" />}>
@@ -72,7 +72,7 @@ export function WorkspaceRoutes({ business, openCase, role, analysisMode }: Work
           path={modelSettings.path}
           element={
             role === 'maintainer' ? (
-              <ModelSettings analysisMode={analysisMode} />
+              <ModelSettings onSaved={onModelSaved} />
             ) : (
               <Alert type="warning" title="仅知识维护人可以访问模型配置" showIcon />
             )

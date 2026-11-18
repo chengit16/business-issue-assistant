@@ -159,6 +159,22 @@ class HealthRead(BaseModel):
     analysis_mode: AnalysisMode
 
 
+class ModelSettingsRead(BaseModel):
+    """维护人可见的团队配置，密钥只显示是否已设置。"""
+
+    mode: AnalysisMode
+    address: str
+    model: str
+    has_api_key: bool
+    version: int
+
+
+class ModelTestRead(BaseModel):
+    """测试通过后签发短期凭证，保存时绑定账号、参数与配置版本。"""
+
+    test_token: str
+
+
 class ErrorRead(BaseModel):
     """稳定错误契约，detail 保留旧客户端的可展示消息。"""
 

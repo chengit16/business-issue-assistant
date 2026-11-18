@@ -2,10 +2,10 @@
 
 from typing import Annotated
 
-from pydantic import Field, StringConstraints
+from pydantic import Field, SecretStr, StringConstraints
 
 from ..domain.commands import AnalysisCommand, CaseChanges, Command, DraftContent, FeedbackCommand
-from ..domain.types import Business, Role
+from ..domain.types import AnalysisMode, Business, Role
 
 
 class LoginInput(Command):
@@ -47,3 +47,21 @@ class AnalysisInput(AnalysisCommand):
 
 class FeedbackInput(FeedbackCommand):
     """HTTP 反馈输入，实际结果不会自动改变案例验证状态。"""
+
+
+class ModelConnectionInput(Command):
+    """待测试的团队连接，仅在请求体内接收新密钥。"""
+
+    address: str = Field(default="", max_length=2048, description="模型接口基础地址")
+    model: str = Field(default="", max_length=200, description="供应商配置的模型名称")
+    api_key: SecretStr | None = Field(
+        default=None, max_length=4096, description="同地址留空复用已有密钥"
+    )
+    version: int = Field(ge=0, description="读取配置时的版本，环境变量初始版本为 0")
+
+
+class ModelSettingsInput(ModelConnectionInput):
+    """保存运行方式，模型模式要求提供同一组参数的有效测试凭证。"""
+
+    mode: AnalysisMode
+    test_token: SecretStr | None = Field(default=None, max_length=2048)

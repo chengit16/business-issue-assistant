@@ -95,7 +95,7 @@ export function Workspace({ user }: WorkspaceProps) {
             business={business}
             openCase={openCase}
             role={user.role}
-            analysisMode={overview.data?.analysis_mode}
+            onModelSaved={refresh}
           />
         </main>
         <footer className="page-footer flex justify-between">

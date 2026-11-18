@@ -43,18 +43,10 @@
 
 .model-uses li,
 .model-protocol,
-.model-key-row,
 .model-actions {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-.model-key-row {
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-  color: #64745b;
-  font-size: 12px;
 }
 
 .model-actions {
@@ -66,14 +58,8 @@
   margin-top: 16px;
 }
 
-.model-applied {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid #d4e4d9;
+.model-active-name {
+  margin: 12px 0 0;
   font-size: 13px;
   overflow-wrap: anywhere;
 }
