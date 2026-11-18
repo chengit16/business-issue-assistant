@@ -1,29 +1,35 @@
-/** @description 管理测试凭证和配置发布，编辑参数后旧凭证立即失效。 */
+/** @description 管理供应商目录、测试凭证和发布，连接变化时丢弃旧目录。 */
 import { useRef, useState } from 'react'
 import { App, Form } from 'antd'
 import { ApiError, errorMessage } from '../../api/client'
-import { saveModelSettings, testModelSettings } from '../../api/services/modelSettings'
-import type { ModelConnectionInput, ModelSettings } from '../../api/services/modelSettings'
+import {
+  fetchModelCatalog,
+  saveModelSettings,
+  testModelSettings,
+} from '../../api/services/modelSettings'
+import type { ModelCatalogInput, ModelSettings } from '../../api/services/modelSettings'
 import { useRequestScope } from '../../hooks/useRequestScope'
 import type { AnalysisMode } from '../../types'
 
 interface ModelFields {
   mode: AnalysisMode
   address: string
-  model: string
+  model?: string
   apiKey?: string
 }
 
-/** 把密钥限定在表单与写入请求内，返回操作状态供界面提示。 */
+/** 目录只反映表单当前凭证，模型可用性仍须在发布前测试。 */
 export function useModelSettingsForm(settings: ModelSettings, onSaved: () => void) {
   const { message, modal } = App.useApp()
   const [form] = Form.useForm<ModelFields>()
   const mode = Form.useWatch('mode', form) ?? settings.mode
   const address = Form.useWatch('address', form) ?? settings.address
+  const model = Form.useWatch('model', form)
+  const [catalog, setCatalog] = useState<string[] | null>(null)
   const [testToken, setTestToken] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [needsReload, setNeedsReload] = useState(false)
-  const [pending, setPending] = useState<'test' | 'save' | null>(null)
+  const [pending, setPending] = useState<'catalog' | 'test' | 'save' | null>(null)
   const busy = useRef(false)
   const revision = useRef(0)
   const begin = useRequestScope()
@@ -31,22 +37,33 @@ export function useModelSettingsForm(settings: ModelSettings, onSaved: () => voi
     settings.has_api_key &&
     address.trim().replace(/\/+$/, '') === settings.address.replace(/\/+$/, '')
 
-  function input(values: ModelFields): ModelConnectionInput {
+  function credentials(values: ModelFields): ModelCatalogInput {
     return {
       address: values.address.trim(),
-      model: values.model.trim(),
       api_key: values.apiKey?.trim() || undefined,
       version: settings.version,
     }
   }
 
-  function changed() {
+  function changed(fields: Partial<ModelFields>) {
+    // 地址或密钥变更后清除旧供应商的选择，单独换模型时仍可使用当前目录。
+    if ('address' in fields || 'apiKey' in fields) {
+      setCatalog(null)
+      form.setFieldValue('model', undefined)
+    }
+    invalidateTest()
+  }
+
+  function invalidateTest() {
     revision.current += 1
     setTestToken(null)
     setError('')
   }
 
-  async function perform(kind: 'test' | 'save', operation: (signal: AbortSignal) => Promise<void>) {
+  async function perform(
+    kind: 'catalog' | 'test' | 'save',
+    operation: (signal: AbortSignal) => Promise<void>,
+  ) {
     if (busy.current) return
     const scope = begin()
     busy.current = true
@@ -66,12 +83,32 @@ export function useModelSettingsForm(settings: ModelSettings, onSaved: () => voi
     }
   }
 
-  function test(values: ModelFields) {
+  async function loadCatalog() {
     if (busy.current) return
+    const requestedRevision = revision.current
+    const values = await form.validateFields(['address', 'apiKey']).catch(() => null)
+    if (!values || requestedRevision !== revision.current) return
+    await perform('catalog', async (signal) => {
+      const { models } = await fetchModelCatalog(credentials(values), signal)
+      if (signal.aborted || requestedRevision !== revision.current) return
+      setCatalog(models)
+      const selected = form.getFieldsValue().model
+      if (selected && !models.includes(selected)) {
+        form.setFieldValue('model', undefined)
+        invalidateTest()
+      }
+    })
+  }
+
+  function test(values: ModelFields) {
+    if (busy.current || !values.model) return
     const testedRevision = revision.current
     setTestToken(null)
     void perform('test', async (signal) => {
-      const result = await testModelSettings(input(values), signal)
+      const result = await testModelSettings(
+        { ...credentials(values), model: values.model ?? '' },
+        signal,
+      )
       if (!signal.aborted && testedRevision === revision.current) setTestToken(result.test_token)
     })
   }
@@ -91,7 +128,7 @@ export function useModelSettingsForm(settings: ModelSettings, onSaved: () => voi
           if (testedRevision !== revision.current) return
           const data =
             values.mode === 'model'
-              ? input(values)
+              ? { ...credentials(values), model: values.model ?? '' }
               : { version: settings.version, address: '', model: '' }
           await saveModelSettings({ ...data, mode: values.mode, test_token: testToken }, signal)
           if (!signal.aborted) {
@@ -106,12 +143,15 @@ export function useModelSettingsForm(settings: ModelSettings, onSaved: () => voi
   return {
     form,
     mode,
+    model,
+    catalog,
     canReuseKey,
     pending,
     error,
     needsReload,
     isTested: testToken !== null,
     changed,
+    loadCatalog,
     test,
     save,
   }

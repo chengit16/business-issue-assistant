@@ -834,20 +834,13 @@
       "title": "LoginInput",
       "description": "验证登录凭证长度，口令保留原始空白语义。"
     },
-    "ModelConnectionInput": {
+    "ModelCatalogInput": {
       "properties": {
         "address": {
           "type": "string",
           "maxLength": 2048,
           "title": "Address",
           "description": "模型接口基础地址",
-          "default": ""
-        },
-        "model": {
-          "type": "string",
-          "maxLength": 200,
-          "title": "Model",
-          "description": "供应商配置的模型名称",
           "default": ""
         },
         "api_key": {
@@ -877,23 +870,33 @@
       "required": [
         "version"
       ],
-      "title": "ModelConnectionInput",
-      "description": "待测试的团队连接，仅在请求体内接收新密钥。"
+      "title": "ModelCatalogInput",
+      "description": "读取供应商模型列表，只接收对应地址的凭证和当前配置版本。"
     },
-    "ModelSettingsInput": {
+    "ModelCatalogRead": {
+      "properties": {
+        "models": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array",
+          "title": "Models"
+        }
+      },
+      "type": "object",
+      "required": [
+        "models"
+      ],
+      "title": "ModelCatalogRead",
+      "description": "供应商公开给当前凭证的模型标识，实际对话兼容性通过试连确认。"
+    },
+    "ModelConnectionInput": {
       "properties": {
         "address": {
           "type": "string",
           "maxLength": 2048,
           "title": "Address",
           "description": "模型接口基础地址",
-          "default": ""
-        },
-        "model": {
-          "type": "string",
-          "maxLength": 200,
-          "title": "Model",
-          "description": "供应商配置的模型名称",
           "default": ""
         },
         "api_key": {
@@ -916,6 +919,59 @@
           "minimum": 0.0,
           "title": "Version",
           "description": "读取配置时的版本，环境变量初始版本为 0"
+        },
+        "model": {
+          "type": "string",
+          "maxLength": 200,
+          "title": "Model",
+          "description": "供应商配置的模型名称",
+          "default": ""
+        }
+      },
+      "additionalProperties": false,
+      "type": "object",
+      "required": [
+        "version"
+      ],
+      "title": "ModelConnectionInput",
+      "description": "测试已选模型，保留当前连接的密钥复用规则。"
+    },
+    "ModelSettingsInput": {
+      "properties": {
+        "address": {
+          "type": "string",
+          "maxLength": 2048,
+          "title": "Address",
+          "description": "模型接口基础地址",
+          "default": ""
+        },
+        "api_key": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 4096,
+              "format": "password",
+              "writeOnly": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Api Key",
+          "description": "同地址留空复用已有密钥"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 0.0,
+          "title": "Version",
+          "description": "读取配置时的版本，环境变量初始版本为 0"
+        },
+        "model": {
+          "type": "string",
+          "maxLength": 200,
+          "title": "Model",
+          "description": "供应商配置的模型名称",
+          "default": ""
         },
         "mode": {
           "type": "string",

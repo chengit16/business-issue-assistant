@@ -388,6 +388,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/settings/model/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Models
+         * @description 密钥通过请求体传递，读取该凭证可见的供应商模型。
+         */
+        post: operations["fetchModelCatalog"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/settings/model/test": {
         parameters: {
             query?: never;
@@ -875,22 +895,16 @@ export interface components {
             password: string;
         };
         /**
-         * ModelConnectionInput
-         * @description 待测试的团队连接，仅在请求体内接收新密钥。
+         * ModelCatalogInput
+         * @description 读取供应商模型列表，只接收对应地址的凭证和当前配置版本。
          */
-        ModelConnectionInput: {
+        ModelCatalogInput: {
             /**
              * Address
              * @description 模型接口基础地址
              * @default
              */
             address: string;
-            /**
-             * Model
-             * @description 供应商配置的模型名称
-             * @default
-             */
-            model: string;
             /**
              * Api Key
              * @description 同地址留空复用已有密钥
@@ -901,6 +915,42 @@ export interface components {
              * @description 读取配置时的版本，环境变量初始版本为 0
              */
             version: number;
+        };
+        /**
+         * ModelCatalogRead
+         * @description 供应商公开给当前凭证的模型标识，实际对话兼容性通过试连确认。
+         */
+        ModelCatalogRead: {
+            /** Models */
+            models: string[];
+        };
+        /**
+         * ModelConnectionInput
+         * @description 测试已选模型，保留当前连接的密钥复用规则。
+         */
+        ModelConnectionInput: {
+            /**
+             * Address
+             * @description 模型接口基础地址
+             * @default
+             */
+            address: string;
+            /**
+             * Api Key
+             * @description 同地址留空复用已有密钥
+             */
+            api_key?: string | null;
+            /**
+             * Version
+             * @description 读取配置时的版本，环境变量初始版本为 0
+             */
+            version: number;
+            /**
+             * Model
+             * @description 供应商配置的模型名称
+             * @default
+             */
+            model: string;
         };
         /**
          * ModelSettingsInput
@@ -914,12 +964,6 @@ export interface components {
              */
             address: string;
             /**
-             * Model
-             * @description 供应商配置的模型名称
-             * @default
-             */
-            model: string;
-            /**
              * Api Key
              * @description 同地址留空复用已有密钥
              */
@@ -929,6 +973,12 @@ export interface components {
              * @description 读取配置时的版本，环境变量初始版本为 0
              */
             version: number;
+            /**
+             * Model
+             * @description 供应商配置的模型名称
+             * @default
+             */
+            model: string;
             /**
              * Mode
              * @enum {string}
@@ -3062,6 +3112,102 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ModelSettingsRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorRead"];
+                };
+            };
+        };
+    };
+    fetchModelCatalog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModelCatalogInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelCatalogRead"];
                 };
             };
             /** @description Unauthorized */

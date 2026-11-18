@@ -1,6 +1,6 @@
-/** @description 维护团队模型连接表单。现有密钥只显示设置状态，新值默认遮蔽。 */
-import { Alert, Button, Form, Input, Radio, Tag } from 'antd'
-import { ApiOutlined, ExperimentOutlined } from '@ant-design/icons'
+/** @description 从供应商目录选择模型，现有密钥只显示设置状态，新值默认遮蔽。 */
+import { Alert, Button, Form, Input, Radio, Select, Tag } from 'antd'
+import { ApiOutlined, ExperimentOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { ModelSettings } from '../../api/services/modelSettings'
 import { useModelSettingsForm } from './useModelSettingsForm'
 
@@ -17,6 +17,8 @@ interface ModelSettingsFormProps {
 export function ModelSettingsForm({ settings, onSaved, onReload }: ModelSettingsFormProps) {
   const state = useModelSettingsForm(settings, onSaved)
   const isModel = state.mode === 'model'
+  // 未拉取目录时仍展示已保存的模型，旧配置可以直接重测。
+  const models = state.catalog ?? (state.model ? [state.model] : [])
   return (
     <section className="panel min-w-0" aria-labelledby="model-connection-title">
       <h2 id="model-connection-title">运行方式与连接</h2>
@@ -57,14 +59,6 @@ export function ModelSettingsForm({ settings, onSaved, onReload }: ModelSettings
               <Input placeholder="https://model.example/v1" maxLength={2048} autoComplete="off" />
             </Form.Item>
             <Form.Item
-              name="model"
-              label="模型名称"
-              className="mb-4"
-              rules={[{ required: true, whitespace: true, message: '请输入模型名称' }]}
-            >
-              <Input placeholder="填写供应商提供的模型名称" maxLength={200} autoComplete="off" />
-            </Form.Item>
-            <Form.Item
               name="apiKey"
               label={
                 <span>
@@ -92,6 +86,40 @@ export function ModelSettingsForm({ settings, onSaved, onReload }: ModelSettings
                 autoComplete="new-password"
               />
             </Form.Item>
+            <div className="mb-4">
+              <Form.Item
+                name="model"
+                label="选择模型"
+                className="mb-2"
+                rules={[{ required: true, message: '请选择模型' }]}
+              >
+                <Select
+                  showSearch={{ optionFilterProp: 'label' }}
+                  placeholder="获取列表后选择模型"
+                  options={models.map((id) => ({ value: id, label: id }))}
+                  loading={state.pending === 'catalog'}
+                  disabled={state.pending !== null || models.length === 0}
+                  notFoundContent="没有匹配的模型"
+                />
+              </Form.Item>
+              <div className="flex items-center flex-wrap gap-x-3 gap-y-2">
+                <Button
+                  icon={<ReloadOutlined />}
+                  onClick={() => void state.loadCatalog()}
+                  loading={state.pending === 'catalog'}
+                  disabled={state.needsReload}
+                >
+                  {state.catalog === null ? '获取模型列表' : '刷新模型列表'}
+                </Button>
+                <span aria-live="polite" className="muted">
+                  {state.catalog === null
+                    ? '使用上方的接口地址和密钥获取'
+                    : state.catalog.length === 0
+                      ? '供应商未返回可选模型，请检查密钥权限'
+                      : `已获取 ${state.catalog.length} 个模型`}
+                </span>
+              </div>
+            </div>
           </>
         ) : (
           <Alert type="info" showIcon title="使用案例库检索和本地整理规则。" />
@@ -115,7 +143,7 @@ export function ModelSettingsForm({ settings, onSaved, onReload }: ModelSettings
               htmlType="submit"
               icon={<ExperimentOutlined />}
               loading={state.pending === 'test'}
-              disabled={state.needsReload}
+              disabled={state.needsReload || !state.model}
             >
               测试连接
             </Button>

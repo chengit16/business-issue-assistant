@@ -49,15 +49,20 @@ class FeedbackInput(FeedbackCommand):
     """HTTP 反馈输入，实际结果不会自动改变案例验证状态。"""
 
 
-class ModelConnectionInput(Command):
-    """待测试的团队连接，仅在请求体内接收新密钥。"""
+class ModelCatalogInput(Command):
+    """读取供应商模型列表，只接收对应地址的凭证和当前配置版本。"""
 
     address: str = Field(default="", max_length=2048, description="模型接口基础地址")
-    model: str = Field(default="", max_length=200, description="供应商配置的模型名称")
     api_key: SecretStr | None = Field(
         default=None, max_length=4096, description="同地址留空复用已有密钥"
     )
     version: int = Field(ge=0, description="读取配置时的版本，环境变量初始版本为 0")
+
+
+class ModelConnectionInput(ModelCatalogInput):
+    """测试已选模型，保留当前连接的密钥复用规则。"""
+
+    model: str = Field(default="", max_length=200, description="供应商配置的模型名称")
 
 
 class ModelSettingsInput(ModelConnectionInput):

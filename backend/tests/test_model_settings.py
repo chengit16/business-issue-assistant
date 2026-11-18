@@ -11,12 +11,14 @@ from pydantic import JsonValue
 from sqlalchemy import delete
 
 from app import provider
+from app.config import settings
 from app.db import SessionLocal
 from app.factory import create_app
 from app.model_connection import ModelConnection
 from app.models import ModelSettings
 
 PATH = "/api/settings/model"
+CATALOG_PATH = f"{PATH}/models"
 
 
 @pytest.fixture
@@ -112,6 +114,12 @@ def test_configuration_access_and_private_endpoint_rejection(admin: TestClient) 
     assert denied.status_code == 422
     assert denied.json()["code"] == "MODEL_ADDRESS_INVALID"
     assert "synthetic-secret" not in denied.text
+    assert (
+        admin.post(
+            CATALOG_PATH, json={k: v for k, v in private.items() if k != "model"}
+        ).status_code
+        == 422
+    )
     member = {
         "email": "model-member@example.com",
         "name": "测试成员",
@@ -128,5 +136,55 @@ def test_configuration_access_and_private_endpoint_rejection(admin: TestClient) 
             == 200
         )
         assert client.get(PATH).status_code == 403
+        assert client.post(CATALOG_PATH, json={"version": 0}).status_code == 403
         assert client.post(f"{PATH}/test", json=private).status_code == 403
         assert client.put(PATH, json={"mode": "local_rules", "version": 0}).status_code == 403
+
+
+def test_catalog_uses_current_credentials_without_saving_configuration(
+    admin: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """目录转发复用同地址的密钥，只返回合法模型标识，不修改生效配置。"""
+    address = "https://provider.example/v1"
+    key = "fixture-model-catalog-key"
+    monkeypatch.setattr(settings, "model_base_url", address)
+    monkeypatch.setattr(settings, "model_name", "original-model")
+    monkeypatch.setattr(settings, "model_api_key", key)
+    status = 200
+
+    def managed_request(
+        method: str,
+        request_address: str,
+        path: str,
+        headers: dict[str, str],
+        timeout: httpx.Timeout,
+    ) -> httpx.Response:
+        assert (method, request_address, path) == ("GET", address, "/models")
+        assert headers["Authorization"] == f"Bearer {key}"
+        return httpx.Response(
+            status,
+            json={
+                "data": [
+                    {"id": model, "extra": key}
+                    for model in ("b-model", "a-model", "b-model", "", "too-long-" * 30)
+                ]
+            },
+            request=httpx.Request(method, request_address + path),
+        )
+
+    monkeypatch.setattr(provider, "_managed_request", managed_request)
+    query = {"address": address, "version": 0}
+    response = admin.post(CATALOG_PATH, json=query)
+    assert response.status_code == 200
+    assert response.json() == {"models": ["a-model", "b-model"]}
+    assert admin.get(PATH).json()["model"] == "original-model"
+    assert (
+        admin.post(CATALOG_PATH, json={**query, "address": "https://other.example"}).status_code
+        == 422
+    )
+    assert admin.post(CATALOG_PATH, json={**query, "version": 1}).status_code == 409
+    status = 404
+    rejected = admin.post(CATALOG_PATH, json=query)
+    assert rejected.status_code == 502
+    assert rejected.json()["code"] == "MODEL_CATALOG_UNAVAILABLE"
+    assert key not in rejected.text

@@ -169,6 +169,12 @@ class ModelSettingsRead(BaseModel):
     version: int
 
 
+class ModelCatalogRead(BaseModel):
+    """供应商公开给当前凭证的模型标识，实际对话兼容性通过试连确认。"""
+
+    models: list[str]
+
+
 class ModelTestRead(BaseModel):
     """测试通过后签发短期凭证，保存时绑定账号、参数与配置版本。"""
 

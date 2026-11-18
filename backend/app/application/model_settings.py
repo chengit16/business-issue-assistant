@@ -11,15 +11,15 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..config import settings
-from ..contracts.inputs import ModelConnectionInput, ModelSettingsInput
-from ..contracts.responses import ModelSettingsRead, ModelTestRead
+from ..contracts.inputs import ModelCatalogInput, ModelConnectionInput, ModelSettingsInput
+from ..contracts.responses import ModelCatalogRead, ModelSettingsRead, ModelTestRead
 from ..domain.errors import BusinessError
 from ..domain.policies import require_role
 from ..domain.types import Actor, AnalysisMode
 from ..model_connection import ModelConnection, managed_endpoint
 from ..model_secrets import model_cipher
 from ..models import ModelSettings, timestamp
-from ..provider import model_json
+from ..provider import list_model_ids, model_json
 from .identity import refresh_actor
 
 
@@ -72,7 +72,7 @@ def read_settings(db: Session, actor: Actor) -> ModelSettingsRead:
     return _project(db.get(ModelSettings, 1))
 
 
-def _candidate(data: ModelConnectionInput, row: ModelSettings | None) -> ModelConnection:
+def _credentials(data: ModelCatalogInput, row: ModelSettings | None) -> tuple[str, str]:
     current = _project(row)
     if current.version != data.version:
         raise _conflict()
@@ -81,11 +81,27 @@ def _candidate(data: ModelConnectionInput, row: ModelSettings | None) -> ModelCo
     # 地址改变时必须主动提交密钥，避免将已有凭证转发给其他服务。
     if not key and current.has_api_key and address == current.address.rstrip("/"):
         key = _key(row)
-    if not data.model or not key:
-        raise BusinessError("MODEL_FIELDS_REQUIRED", "请填写模型名称和 API 密钥", 422)
+    if not key:
+        raise BusinessError("MODEL_FIELDS_REQUIRED", "请填写 API 密钥", 422)
     if not key.isascii() or any(char.isspace() or not char.isprintable() for char in key):
         raise BusinessError("MODEL_KEY_INVALID", "API 密钥中包含不支持的字符", 422)
+    return address, key
+
+
+def _candidate(data: ModelConnectionInput, row: ModelSettings | None) -> ModelConnection:
+    address, key = _credentials(data, row)
+    if not data.model:
+        raise BusinessError("MODEL_FIELDS_REQUIRED", "请选择模型", 422)
     return ModelConnection(address, data.model, key)
+
+
+def fetch_catalog(db: Session, actor: Actor, data: ModelCatalogInput) -> ModelCatalogRead:
+    """使用待配置的供应商凭证列出模型，只读远端目录，不改变团队配置。"""
+    require_role(actor, "maintainer")
+    address, key = _credentials(data, db.get(ModelSettings, 1))
+    models = list_model_ids(address, key)
+    require_role(refresh_actor(db, actor), "maintainer")
+    return ModelCatalogRead(models=models)
 
 
 def _proof(actor: Actor, version: int, connection: ModelConnection) -> bytes:
