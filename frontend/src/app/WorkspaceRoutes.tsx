@@ -80,15 +80,7 @@ export function WorkspaceRoutes({ business, openCase, role, onModelSaved }: Work
         />
         <Route
           path="*"
-          element={
-            <Alert
-              type="info"
-              title="此页面不存在"
-              description={
-                <Link to={`/assistant?${new URLSearchParams({ business })}`}>返回问题助手</Link>
-              }
-            />
-          }
+          element={<Link to={`/assistant?${new URLSearchParams({ business })}`}>返回问题助手</Link>}
         />
       </Routes>
     </Suspense>

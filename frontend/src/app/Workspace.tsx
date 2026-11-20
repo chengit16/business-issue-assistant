@@ -1,7 +1,7 @@
-/** @description 装配路由、业务范围和案例定位，URL 保存可分享状态，Zustand 保存跨页面客户端选择。 */
+/** @description 装配路由、页面标题、业务范围和案例定位，URL 保存可分享状态，Zustand 保存跨页面客户端选择。 */
 import { lazy, Suspense, useCallback } from 'react'
 import { Alert, App, Button, Spin } from 'antd'
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { matchPath, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { errorMessage } from '../api/client'
 import { readOverview } from '../api/services/overview'
 import { useQuery } from '../hooks/useQuery'
@@ -38,7 +38,12 @@ export function Workspace({ user }: WorkspaceProps) {
     selectedBusiness ??
     user.businesses[0]
   const overview = useQuery({ key: `overview:${user.id}:${revision}`, load: readOverview })
-  const isModelSettings = location.pathname === modelSettings.path
+  const pathname = location.pathname === '/' ? '/assistant' : location.pathname
+  const isModelSettings = matchPath(modelSettings.path, pathname) !== null
+  const currentPage = isModelSettings
+    ? modelSettings
+    : navigation.find((item) => matchPath(item.path, pathname))
+  const pageTitle = currentPage?.pageTitle ?? currentPage?.title ?? '页面不存在'
   const openCase = useCallback(
     (id: string) =>
       setSearch((previous) => {
@@ -78,14 +83,12 @@ export function Workspace({ user }: WorkspaceProps) {
       />
       <div className="main-shell min-h-screen flex flex-col">
         <WorkspaceHeader
-          title={
-            isModelSettings
-              ? modelSettings.title
-              : (navigation.find((item) => item.path === location.pathname)?.title ?? '页面不存在')
-          }
+          title={pageTitle}
           business={business}
           businesses={user.businesses}
-          analysisMode={overview.data?.analysis_mode}
+          analysisMode={
+            currentPage?.path === '/assistant' ? overview.data?.analysis_mode : undefined
+          }
           showBusiness={!isModelSettings}
           onBusiness={changeBusiness}
           onLogout={() => void onLogout()}
@@ -98,10 +101,6 @@ export function Workspace({ user }: WorkspaceProps) {
             onModelSaved={refresh}
           />
         </main>
-        <footer className="page-footer flex justify-between">
-          <span>业务问题助手</span>
-          <span>让经验可查，让解决可循。</span>
-        </footer>
       </div>
       <Suspense fallback={<Spin fullscreen />}>
         {selectedCase && (

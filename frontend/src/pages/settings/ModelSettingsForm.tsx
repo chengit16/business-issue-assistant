@@ -1,6 +1,6 @@
 /** @description 从供应商目录选择模型，现有密钥只显示设置状态，新值默认遮蔽。 */
-import { Alert, Button, Form, Input, Select, Tag } from 'antd'
-import { ApiOutlined, ExperimentOutlined, ReloadOutlined } from '@ant-design/icons'
+import { Alert, Button, Form, Input, Select } from 'antd'
+import { ExperimentOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { ModelLibrary, ModelProfile } from '../../api/services/modelSettings'
 import { useModelSettingsForm } from './useModelSettingsForm'
 
@@ -41,13 +41,10 @@ export function ModelSettingsForm({
       disabled={state.pending !== null}
       requiredMark={false}
     >
-      <p className="model-protocol">
-        <ApiOutlined aria-hidden /> OpenAI 兼容（Chat Completions）
-      </p>
       <Form.Item
         name="address"
-        label="接口地址"
-        extra="填写 HTTPS 基础地址，例如以 /v1 结尾的地址。"
+        label="OpenAI 兼容接口地址"
+        tooltip="需支持 Chat Completions"
         className="mb-4"
         rules={[
           { required: true, whitespace: true, message: '请输入接口地址' },
@@ -58,29 +55,12 @@ export function ModelSettingsForm({
       </Form.Item>
       <Form.Item
         name="apiKey"
-        label={
-          <span>
-            API 密钥{' '}
-            {state.canReuseKey && (
-              <Tag className="ml-2" color="success">
-                已配置
-              </Tag>
-            )}
-          </span>
-        }
-        extra={
-          state.canReuseKey
-            ? '留空会继续使用原密钥。填写新密钥可替换。'
-            : '填入该模型服务的 API 密钥。'
-        }
+        label="API 密钥"
+        extra={state.canReuseKey ? '留空沿用现有密钥。' : undefined}
         rules={[{ required: !state.canReuseKey, whitespace: true, message: '请输入 API 密钥' }]}
         className="mb-4"
       >
-        <Input.Password
-          placeholder={state.canReuseKey ? '输入新密钥进行替换' : '输入 API 密钥'}
-          maxLength={4096}
-          autoComplete="new-password"
-        />
+        <Input.Password maxLength={4096} autoComplete="new-password" />
       </Form.Item>
       <div className="mb-4">
         <Form.Item
@@ -91,7 +71,7 @@ export function ModelSettingsForm({
         >
           <Select
             showSearch={{ optionFilterProp: 'label' }}
-            placeholder="获取列表后选择模型"
+            placeholder={models.length ? '请选择模型' : '请先获取模型列表'}
             options={models.map((id) => ({ value: id, label: id }))}
             loading={state.pending === 'catalog'}
             disabled={state.pending !== null || models.length === 0}
@@ -107,17 +87,15 @@ export function ModelSettingsForm({
           >
             {state.catalog === null ? '获取模型列表' : '刷新模型列表'}
           </Button>
-          <span aria-live="polite" className="muted">
-            {state.catalog === null
-              ? '使用上方的接口地址和密钥获取'
-              : state.catalog.length === 0
-                ? '供应商未返回可选模型，请检查密钥权限'
-                : `已获取 ${state.catalog.length} 个模型`}
-          </span>
+          {state.catalog?.length === 0 && (
+            <span role="status" className="muted">
+              供应商未返回可选模型，请检查密钥权限
+            </span>
+          )}
         </div>
       </div>
       <div aria-live="polite" className="model-test-result">
-        {state.isTested && <Alert type="success" showIcon title="连接测试通过，可以保存" />}
+        {state.isTested && <Alert type="success" showIcon title="连接测试通过" />}
         {state.error && (
           <Alert
             type="error"

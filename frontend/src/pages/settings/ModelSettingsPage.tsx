@@ -68,11 +68,6 @@ export function ModelSettingsPage({ onSaved }: ModelSettingsPageProps) {
 
   return (
     <div className="model-settings">
-      <div className="page-intro compact">
-        <span className="eyebrow">团队管理</span>
-        <h1>模型配置</h1>
-        <p>保存多套连接，为团队的问题分析和草稿整理选择当前使用的模型。</p>
-      </div>
       {(error || switchError) && (
         <Alert
           className="mb-5"
@@ -87,10 +82,7 @@ export function ModelSettingsPage({ onSaved }: ModelSettingsPageProps) {
         <div className="model-settings-grid">
           <section className="panel min-w-0" aria-labelledby="model-list-title">
             <div className="model-list-heading">
-              <div>
-                <h2 id="model-list-title">已保存的模型</h2>
-                <p>共 {library.profiles.length} 套配置</p>
-              </div>
+              <h2 id="model-list-title">已保存的模型</h2>
               <Button
                 type="primary"
                 icon={<PlusOutlined />}
@@ -112,12 +104,11 @@ export function ModelSettingsPage({ onSaved }: ModelSettingsPageProps) {
             aria-labelledby="model-status-title"
             aria-live="polite"
           >
-            <h2 id="model-status-title">当前运行状态</h2>
+            <h2 id="model-status-title">团队运行模式</h2>
             <strong className="model-live-mode">
               {library.mode === 'model' ? '模型辅助' : '本地规则'}
             </strong>
             {active && <p className="model-active-name">{active.model}</p>}
-            <p className="model-scope">适用于全部业务 · 每次使用一套配置</p>
             {library.mode === 'model' && (
               <Button block disabled={switching} onClick={() => void activate(null)}>
                 切换为本地规则

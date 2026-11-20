@@ -25,13 +25,10 @@
   font-weight: 600;
 }
 
-.model-scope {
-  margin-top: 6px;
-  color: #607168;
-  font-size: 13px;
+.model-context .ant-btn {
+  margin-top: 16px;
 }
 
-.model-protocol,
 .model-actions {
   display: flex;
   align-items: center;
@@ -80,17 +77,12 @@
 }
 
 .model-list-heading h2 {
-  margin-bottom: 4px;
+  margin: 0;
 }
 
-.model-list-heading p,
 .model-profile-address {
   color: #607168;
   font-size: 13px;
-}
-
-.model-list-heading p {
-  margin-bottom: 0;
 }
 
 .model-profile-list {
